@@ -21,6 +21,9 @@ tsconfig.tsbuildinfo
 # local harness reference clone
 /harness-starter-kit/
 
+# local design reference bundles
+/today-bus.zip
+
 # production
 /build
 
