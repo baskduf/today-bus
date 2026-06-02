@@ -150,6 +150,30 @@ the response format defensively:
 - Error messages, API responses, scripts, and docs must never include the TAGO
   service key or a full `serviceKey=...` query string.
 
+## Official Timetable Fallback
+
+TAGO real-time arrival data remains the first live source. When the
+route-specific arrival lookup succeeds but returns zero rows, Today-Bus now
+checks the official Gumi BIS timetable for the current demo route before using
+mock fallback.
+
+See `docs/domain/gumi-bis.md` for the Gumi BIS endpoints and confirmed route
+`18020` timetable values.
+
+Planner source priority for the supported demo route:
+
+1. `tago`: TAGO route-specific live arrival exists and the resulting plan is
+   not too early for the requested arrival time.
+2. `gumi_bis_timetable`: TAGO has no live arrival, or the current live arrival
+   is too early for the requested arrival time, and Gumi BIS official timetable
+   is available.
+3. `mock`: unsupported route, unsupported input, TAGO/BIS failure, or no usable
+   timetable result.
+
+The Gumi BIS timetable is route-start based. The planner estimates the demo
+origin-stop pass time from confirmed TAGO route stop orders, so it is more
+useful than mock data but still not stop-level real-time prediction.
+
 ## Backend Shape
 
 The frontend should not consume TAGO responses directly. Today-Bus should expose
@@ -182,10 +206,10 @@ a structured fallback:
   "source": "mock",
   "fallback": {
     "reason": "no_arrival",
-    "message": "TAGO 실시간 도착정보에 현재 180번 도착예정이 없어 mock 플랜으로 대체했습니다."
+    "message": "TAGO 실시간 도착정보와 구미 BIS 공식 시간표에서 사용할 수 있는 미래 계획을 찾지 못해 mock 플랜으로 대체했습니다."
   },
   "warnings": [
-    "TAGO 실시간 도착정보에 현재 180번 도착예정이 없어 mock 플랜으로 대체했습니다."
+    "TAGO 실시간 도착정보에 현재 180번 도착예정이 없어 구미 BIS 공식 시간표를 확인합니다."
   ]
 }
 ```
@@ -197,8 +221,10 @@ Fallback reasons:
 - `future_planning_not_supported`: the requested arrival value is not a
   supported same-day `오늘 HH:mm` value.
 - `no_arrival`: TAGO lookup succeeded, but the route-specific origin-stop
-  arrival list is empty.
+  arrival list is empty and no usable timetable plan was available.
 - `tago_error`: the public data API call failed or returned an error response.
+- `timetable_error`: TAGO and Gumi BIS timetable lookup did not produce a usable
+  plan.
 
 Operational health endpoint:
 
@@ -214,10 +240,13 @@ The health response is non-secret and reports:
 - whether route stop order matches `GMB780` order `5` before `GMB79` order `29`;
 - whether arrival lookup completed;
 - current `arrivalCount`;
-- whether planner fallback is required.
+- whether TAGO live fallback is required;
+- whether mock fallback is required after checking the Gumi BIS timetable;
+- current Gumi BIS timetable lookup status.
 
 An arrival count of `0` is a handled state: the arrival lookup can still be
-`ok: true`, while `fallbackRequired: true`.
+`ok: true`, while `fallbackRequired: true`. If the Gumi BIS timetable returns
+departures, `mockFallbackRequired` can still be `false`.
 
 ## First Spike Order
 
@@ -240,3 +269,8 @@ future arrival-time planning such as "arrive by today 14:00". If TAGO does not
 provide enough timetable or headway data for the target city, the backend will
 need an additional timetable/headway data source or a limited first release
 focused on near-term departure decisions.
+
+For the current 진평동 to 구미역 demo route, Gumi BIS official route-start
+timetable data partially covers this gap. The remaining limitation is that the
+planner estimates the origin-stop pass time instead of using stop-level
+timetable data.

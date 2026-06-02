@@ -1,6 +1,10 @@
 # Failure Memory
 
-No recurring runtime failure, failed check, security issue, data-loss risk, or repeated agent mistake has been recorded yet.
+Recorded failures:
+
+- `0001-missing-adr-for-mvp-product-structure.md`
+- `0002-server-timezone-live-planning.md`
+- `0003-gumi-bis-node-tls-chain.md`
 
 Add a dated Markdown record in this directory when a failure should not recur. Include:
 
