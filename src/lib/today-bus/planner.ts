@@ -218,7 +218,7 @@ function createArrivalDetail(
   return `${input.arrival} 기준 여유 ${slackMinutes}분 · 안전 기준 ${safetyBufferMinutes}분`;
 }
 
-function getEstimatedOriginOffsetMinutes() {
+export function getEstimatedOriginOffsetMinutes() {
   const originFromRouteStartStops = tagoDemoIdentifiers.originStopOrder - 1;
   const originToDestinationStops =
     tagoDemoIdentifiers.destinationStopOrder -
@@ -257,6 +257,7 @@ function createLivePlan(
   input: TripInput,
   snapshot: TagoDemoSnapshot,
   desiredArrivalTime: Date,
+  now = new Date(),
 ): BusPlan | undefined {
   const arrivalCandidates = snapshot.arrivals
     .map((arrival) => ({ arrival, seconds: getArrivalSeconds(arrival) }))
@@ -269,7 +270,6 @@ function createLivePlan(
   const firstArrival = arrivalCandidates[0];
   if (!firstArrival) return undefined;
 
-  const now = new Date();
   const boarding = new Date(now.getTime() + firstArrival.seconds * 1000);
   const busStopArrival = addMinutes(boarding, -stopWaitMinutes);
   const departure = addMinutes(
@@ -599,20 +599,24 @@ function createMockResponse(
 }
 
 async function createTimetableResponse({
+  checkedAt,
   desiredArrivalTime,
+  getTimetable,
   requestedInput,
   tago,
   timetableWarning,
   warnings,
 }: {
+  checkedAt: Date;
   desiredArrivalTime: Date;
+  getTimetable: typeof getGumiBisTimetable;
   requestedInput: TripInput;
   tago?: TodayBusPlanResponse["tago"];
   timetableWarning: string;
   warnings: string[];
 }): Promise<TodayBusPlanResponse | undefined> {
   const scheduleType = getGumiBisScheduleTypeForDate(desiredArrivalTime);
-  const timetable = await getGumiBisTimetable(
+  const timetable = await getTimetable(
     tagoDemoIdentifiers.timetableRouteId,
     scheduleType,
   );
@@ -635,7 +639,7 @@ async function createTimetableResponse({
     source: "gumi_bis_timetable",
     tago,
     timetable: {
-      checkedAt: new Date().toISOString(),
+      checkedAt: checkedAt.toISOString(),
       departureCount: timetable.rows.length,
       originOffsetMinutes: timetablePlans.originOffsetMinutes,
       provider: "gumi_bis",
@@ -647,11 +651,25 @@ async function createTimetableResponse({
   };
 }
 
-export async function createTodayBusPlanResponse(
+export type TodayBusPlanDependencies = {
+  getDemoSnapshot: typeof getTagoDemoSnapshot;
+  getTimetable: typeof getGumiBisTimetable;
+  now: () => Date;
+};
+
+const defaultPlanDependencies: TodayBusPlanDependencies = {
+  getDemoSnapshot: getTagoDemoSnapshot,
+  getTimetable: getGumiBisTimetable,
+  now: () => new Date(),
+};
+
+export async function createTodayBusPlanResponseWithDependencies(
   requestedInput: TripInput,
+  dependencies: TodayBusPlanDependencies,
 ): Promise<TodayBusPlanResponse> {
   const warnings: string[] = [];
-  const desiredArrivalTime = parseTodayArrival(requestedInput);
+  const now = dependencies.now();
+  const desiredArrivalTime = parseTodayArrival(requestedInput, now);
 
   if (!isDemoInput(requestedInput)) {
     const fallback = {
@@ -681,7 +699,7 @@ export async function createTodayBusPlanResponse(
     "구미 BIS 공식 시간표와 정류장 통과 추정으로 계산했습니다.";
 
   try {
-    const snapshot = await getTagoDemoSnapshot();
+    const snapshot = await dependencies.getDemoSnapshot();
     tago = {
       arrivalCount: snapshot.arrivals.length,
       checkedAt: snapshot.checkedAt,
@@ -695,6 +713,7 @@ export async function createTodayBusPlanResponse(
       requestedInput,
       snapshot,
       desiredArrivalTime,
+      now,
     );
 
     if (!livePlan) {
@@ -738,7 +757,9 @@ export async function createTodayBusPlanResponse(
 
   try {
     const timetableResponse = await createTimetableResponse({
+      checkedAt: dependencies.now(),
       desiredArrivalTime,
+      getTimetable: dependencies.getTimetable,
       requestedInput,
       tago,
       timetableWarning,
@@ -761,6 +782,15 @@ export async function createTodayBusPlanResponse(
 
   warnings.push(fallback.message);
   return createMockResponse(requestedInput, warnings, tago, fallback);
+}
+
+export async function createTodayBusPlanResponse(
+  requestedInput: TripInput,
+): Promise<TodayBusPlanResponse> {
+  return createTodayBusPlanResponseWithDependencies(
+    requestedInput,
+    defaultPlanDependencies,
+  );
 }
 
 export async function createTodayBusPlanResponseFromParams(
