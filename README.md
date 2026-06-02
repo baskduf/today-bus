@@ -31,9 +31,13 @@ npm run check:harness
 
 `npm run test:planner` runs the focused source-branch checks for TAGO, Gumi BIS timetable, and mock planner fallback behavior.
 
+Live/public-data diagnostics such as `node scripts/check-tago-backend.mjs` and `node scripts/check-gumi-bis-offset.mjs` are kept outside `check:harness` because they depend on external providers, credentials, network behavior, or public endpoint stability.
+
 ## Harness Notes
 
 This repository uses prompt-first harness engineering guidance in `AGENTS.md` and `docs/`. The local `harness-starter-kit/` directory is a read-only reference clone and is ignored by Git. Do not commit it unless the repository intentionally converts it into a tracked reference or submodule.
+
+External API and custom verification work should follow the checklists in `docs/checklists/`.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 

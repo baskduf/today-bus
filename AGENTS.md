@@ -54,6 +54,7 @@ Use `npm run dev` for local development. The default local URL is `http://localh
 Inspect these before architecture, workflow, integration, or repeated-failure work:
 
 - `docs/decisions/`
+- `docs/checklists/`
 - `docs/conventions/`
 - `docs/design/`
 - `docs/domain/`
@@ -64,11 +65,14 @@ Add or update durable docs when behavior, architecture, commands, conventions, k
 
 For structural product or workflow changes, mock/API boundary choices, major data models or state classifications, or UX principles that become code structure, add a `docs/decisions/` record or explicitly state which existing ADR covers the decision. A domain glossary update does not replace a decision record.
 
+For live external API or public-data work, use `docs/checklists/external-api-work.md` and keep live smoke checks separate from `check:harness` unless they are stable and safe by default.
+
 ## Completion Criteria
 
 - Review `git status --short` and avoid unrelated edits.
 - Run the documented checks relevant to the change.
 - For UI or server behavior changes, verify the local app with `npm run dev` and a browser or explain why build-only validation is enough.
 - For structural behavior, workflow, mock/API boundary, data model, state, or UX changes, add/update a `docs/decisions/` record, cite the existing ADR that covers it, or explain why no decision record was needed.
+- For external API changes, report the endpoint or fixture verified, live/mock mode, redaction handling, empty-result handling, provider error envelope or text-error handling, and any focused smoke command used or intentionally skipped.
 - Keep README, AGENTS, and docs aligned when commands or conventions change.
 - Summarize changed files, checks run, assumptions, remaining risks, and any manual follow-up.
