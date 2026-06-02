@@ -54,6 +54,15 @@ function summarizeHealth(body) {
 function summarizePlans(body) {
   return {
     fallback: body?.fallback,
+    itinerary: body?.itinerary
+      ? {
+          alightingStop: body.itinerary.alightingStop?.name,
+          boardingStop: body.itinerary.boardingStop?.name,
+          destinationPlace: body.itinerary.destinationPlace?.label,
+          originPlace: body.itinerary.originPlace?.label,
+          routeDirection: body.itinerary.route?.directionLabel,
+        }
+      : undefined,
     source: body?.source,
     tagoArrivalCount: body?.tago?.arrivalCount,
     timetable: body?.timetable

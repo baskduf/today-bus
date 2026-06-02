@@ -15,7 +15,10 @@ import {
 } from "@/lib/gumi-bis/client";
 import { tagoDemoIdentifiers } from "@/lib/transit/demo-route";
 
-export { tagoDemoIdentifiers } from "@/lib/transit/demo-route";
+export {
+  tagoDemoIdentifiers,
+  todayBusDemoItinerary,
+} from "@/lib/transit/demo-route";
 
 export type TagoDemoSnapshot = {
   arrivals: TagoArrival[];

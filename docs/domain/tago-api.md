@@ -190,20 +190,61 @@ Request shape:
 ```json
 {
   "origin": "진평동",
+  "originPlaceName": "강동병원",
+  "originAddress": "경북 구미시 인동20길 46",
+  "originLat": "36.1001",
+  "originLng": "128.4301",
+  "originSource": "kakao_keyword",
   "destination": "구미역",
   "desiredArrivalTime": "2026-06-02T14:00:00+09:00",
   "safetyBufferMinutes": 10
 }
 ```
 
+The `originPlaceName`, `originAddress`, `originLat`, `originLng`, and
+`originSource` fields are optional. They can be populated by the home page's
+Kakao Maps keyword search when `NEXT_PUBLIC_KAKAO_MAP_APP_KEY` is configured.
+They refine `itinerary.originPlace` only; the current demo still uses the fixed
+boarding stop `진평중학교입구건너`.
+
 Response shape should stay close to `src/lib/today-bus/mock-plans.ts` so the
 current UI can switch from mock data to backend data with minimal churn.
-The response keeps `warnings: string[]` for the current UI and may also include
-a structured fallback:
+The response keeps `warnings: string[]` for the current UI, includes an
+`itinerary` that separates places from bus stops, and may also include a
+structured fallback:
 
 ```json
 {
   "source": "mock",
+  "itinerary": {
+    "originPlace": {
+      "label": "진평동"
+    },
+    "boardingStop": {
+      "name": "진평중학교입구건너",
+      "nodeId": "GMB780",
+      "stopNo": "10780",
+      "stopOrder": 5,
+      "walkMinutesFromOrigin": 10
+    },
+    "route": {
+      "routeNo": "180",
+      "directionLabel": "구미역 방향",
+      "tagoRouteId": "GMB18020",
+      "oppositeTagoRouteId": "GMB18010",
+      "timetableRouteId": "18020"
+    },
+    "alightingStop": {
+      "name": "구미역(중앙시장)",
+      "nodeId": "GMB79",
+      "stopNo": "10079",
+      "stopOrder": 29
+    },
+    "destinationPlace": {
+      "label": "구미역",
+      "walkMinutesFromAlightingStop": 7
+    }
+  },
   "fallback": {
     "reason": "no_arrival",
     "message": "TAGO 실시간 도착정보와 구미 BIS 공식 시간표에서 사용할 수 있는 미래 계획을 찾지 못해 mock 플랜으로 대체했습니다."

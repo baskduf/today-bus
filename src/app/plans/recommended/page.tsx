@@ -24,6 +24,7 @@ export default async function RecommendedPlanPage({
     await searchParams,
   );
   const tripInput = planResponse.effectiveInput;
+  const { itinerary } = planResponse;
   const { recoveryPlan, recommendedPlan } = planResponse;
   const plansHref = createTripHref("/plans", tripInput);
   const missedHref = `${createTripHref("/plans", tripInput, {
@@ -60,12 +61,19 @@ export default async function RecommendedPlanPage({
 
         <section className="flex flex-col gap-2 pt-3">
           <p className="text-[17px] font-bold text-[var(--ob-text2)]">
-            {tripInput.origin}에서 {tripInput.destination}까지
+            {itinerary.originPlace.label}에서 {itinerary.boardingStop.name}{" "}
+            정류장까지 먼저 이동
           </p>
           <h1 className="text-[43px] font-black leading-[1.04] text-[var(--ob-text)] sm:text-[58px]">
             {recommendedPlan.departureTime}에 출발하면 됩니다
           </h1>
           <p className={summaryClassName}>{recommendedPlan.summaryLine}</p>
+          <p className="text-[17px] font-bold text-[var(--ob-text2)]">
+            {itinerary.route.routeNo}번 {itinerary.route.directionLabel} 탑승 ·{" "}
+            {itinerary.alightingStop.name} 하차 후{" "}
+            {itinerary.destinationPlace.label}까지 도보{" "}
+            {itinerary.destinationPlace.walkMinutesFromAlightingStop}분
+          </p>
         </section>
 
         <SketchCard accent={obColors.coral} bg="#FFF7F2" pad={18} radius="r2">

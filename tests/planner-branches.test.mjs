@@ -80,6 +80,52 @@ test("planner offset remains five minutes for the demo route", () => {
   assert.equal(getEstimatedOriginOffsetMinutes(), 5);
 });
 
+test("returns a place-to-stop itinerary for the demo route", async () => {
+  const { dependencies } = createDependencies({
+    arrivals: [createArrival(120)],
+  });
+
+  const response = await createTodayBusPlanResponseWithDependencies(
+    demoInput,
+    dependencies,
+  );
+
+  assert.equal(response.itinerary.originPlace.label, "진평동");
+  assert.equal(response.itinerary.boardingStop.nodeId, "GMB780");
+  assert.equal(response.itinerary.boardingStop.name, "진평중학교입구건너");
+  assert.equal(response.itinerary.route.directionLabel, "구미역 방향");
+  assert.equal(response.itinerary.alightingStop.nodeId, "GMB79");
+  assert.equal(response.itinerary.alightingStop.name, "구미역(중앙시장)");
+  assert.equal(response.itinerary.destinationPlace.label, "구미역");
+});
+
+test("carries a selected origin place while keeping the demo boarding stop", async () => {
+  const { dependencies } = createDependencies({
+    arrivals: [createArrival(120)],
+  });
+
+  const response = await createTodayBusPlanResponseWithDependencies(
+    {
+      ...demoInput,
+      origin: "강동병원",
+      originAddress: "경북 구미시 인동20길 46",
+      originLat: "36.1001",
+      originLng: "128.4301",
+      originPlaceName: "강동병원",
+      originSource: "kakao_keyword",
+    },
+    dependencies,
+  );
+
+  assert.equal(response.itinerary.originPlace.label, "강동병원");
+  assert.equal(response.itinerary.originPlace.source, "kakao_keyword");
+  assert.equal(response.itinerary.originPlace.address, "경북 구미시 인동20길 46");
+  assert.equal(response.itinerary.originPlace.lat, 36.1001);
+  assert.equal(response.itinerary.originPlace.lng, 128.4301);
+  assert.equal(response.itinerary.boardingStop.nodeId, "GMB780");
+  assert.match(response.warnings.join("\n"), /탑승 정류장 자동 선택/);
+});
+
 test("uses TAGO when live arrival is suitable for the requested arrival time", async () => {
   const { calls, dependencies } = createDependencies({
     arrivals: [createArrival(120)],

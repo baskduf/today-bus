@@ -38,6 +38,7 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
   const params = await searchParams;
   const planResponse = await createTodayBusPlanResponseFromParams(params);
   const tripInput = planResponse.effectiveInput;
+  const { itinerary } = planResponse;
   const { recoveryPlan, recommendedPlan } = planResponse;
   const missedPlanId = resolveMissedPlanId(params);
   const isMissedFlow = missedPlanId === recommendedPlan.id;
@@ -64,7 +65,9 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
             <IconBusBig size={58} stroke={obColors.ink} />
             <div>
               <p className="text-[16px] font-bold text-[var(--ob-text2)]">
-                {tripInput.origin} → {tripInput.destination} · {tripInput.arrival}
+                {itinerary.originPlace.label} →{" "}
+                {itinerary.boardingStop.name} 정류장 →{" "}
+                {itinerary.destinationPlace.label} · {tripInput.arrival}
               </p>
               <h1 className="text-[28px] font-black leading-tight text-[var(--ob-text)]">
                 오늘 나갈 시간을 골라보세요
@@ -72,7 +75,10 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
             </div>
           </div>
           <p className="text-[17px] font-bold text-[var(--ob-text2)]">
-            안전 여유 {tripInput.buffer}분 기준으로 추천 플랜을 먼저 보여드립니다.
+            {itinerary.boardingStop.name}에서 {itinerary.route.routeNo}번{" "}
+            {itinerary.route.directionLabel} 탑승,{" "}
+            {itinerary.alightingStop.name} 하차 · 안전 여유 {tripInput.buffer}분
+            기준입니다.
           </p>
         </section>
 
@@ -112,7 +118,11 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
           </SketchCard>
         ) : null}
 
-        <PlanCard plan={recommendedPlan} tripInput={tripInput} />
+        <PlanCard
+          itinerary={itinerary}
+          plan={recommendedPlan}
+          tripInput={tripInput}
+        />
 
         <section className="flex flex-col gap-3">
           <div>
@@ -133,6 +143,7 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
                     : undefined
                 }
                 key={plan.id}
+                itinerary={itinerary}
                 plan={plan}
                 tripInput={tripInput}
               />

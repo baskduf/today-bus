@@ -1,3 +1,5 @@
+import { todayBusDemoItinerary } from "@/lib/transit/demo-route";
+
 export type PlanStatus = "safe" | "caution" | "danger" | "late" | "too_early";
 
 export type TimelineStepKind = "home" | "stop" | "bus" | "walk" | "arrival";
@@ -36,6 +38,11 @@ export type TripInput = {
   buffer: string;
   destination: string;
   origin: string;
+  originAddress?: string;
+  originLat?: string;
+  originLng?: string;
+  originPlaceName?: string;
+  originSource?: "kakao_keyword" | "manual";
 };
 
 export type TripSearchParams = {
@@ -93,7 +100,7 @@ export const busPlans: BusPlan[] = [
     busNumber: "180번",
     busRideMinutes: 28,
     busStopArrivalTime: "13:13",
-    busStopName: "진평중학교 정류장",
+    busStopName: todayBusDemoItinerary.boardingStop.name,
     departureTime: "13:03",
     detailHrefId: "recommended",
     dropOffTime: "13:46",
@@ -107,27 +114,27 @@ export const busPlans: BusPlan[] = [
     summaryLine: "대기 5분 · 여유 7분",
     timeline: [
       {
-        detail: "진평중학교 정류장까지 10분",
+        detail: `${todayBusDemoItinerary.boardingStop.name} 정류장까지 도보 ${todayBusDemoItinerary.boardingStop.walkMinutesFromOrigin}분`,
         kind: "home",
         label: "집에서 출발",
         time: "13:03",
       },
       {
-        detail: "5분 대기",
+        detail: `정류장번호 ${todayBusDemoItinerary.boardingStop.stopNo} · 5분 대기`,
         kind: "stop",
-        label: "정류장 도착",
+        label: `${todayBusDemoItinerary.boardingStop.name} 도착`,
         time: "13:13",
       },
       {
-        detail: "약 28분 이동",
+        detail: `약 28분 이동 · ${todayBusDemoItinerary.alightingStop.name} 하차`,
         kind: "bus",
-        label: "180번 버스 탑승",
+        label: `180번 ${todayBusDemoItinerary.route.directionLabel} 탑승`,
         time: "13:18",
       },
       {
-        detail: "구미역까지 도보 7분",
+        detail: `${todayBusDemoItinerary.destinationPlace.label}까지 도보 ${todayBusDemoItinerary.destinationPlace.walkMinutesFromAlightingStop}분`,
         kind: "walk",
-        label: "구미역 정류장 하차",
+        label: `${todayBusDemoItinerary.alightingStop.name} 하차`,
         time: "13:46",
       },
       {
@@ -145,7 +152,7 @@ export const busPlans: BusPlan[] = [
     busNumber: "180번",
     busRideMinutes: 28,
     busStopArrivalTime: "12:43",
-    busStopName: "진평중학교 정류장",
+    busStopName: todayBusDemoItinerary.boardingStop.name,
     departureTime: "12:33",
     detailHrefId: "early",
     dropOffTime: "13:16",
@@ -165,7 +172,7 @@ export const busPlans: BusPlan[] = [
     busNumber: "180번",
     busRideMinutes: 28,
     busStopArrivalTime: "13:42",
-    busStopName: "진평중학교 정류장",
+    busStopName: todayBusDemoItinerary.boardingStop.name,
     departureTime: "13:32",
     detailHrefId: "late",
     dropOffTime: "14:15",
@@ -216,12 +223,23 @@ function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function parseOriginSource(value: string | undefined) {
+  return value === "kakao_keyword" || value === "manual" ? value : undefined;
+}
+
 export function resolveTripInput(params: TripSearchParams = {}): TripInput {
+  const originSource = parseOriginSource(firstValue(params.originSource));
+
   return {
     arrival: firstValue(params.arrival) ?? tripDefaults.arrival,
     buffer: firstValue(params.buffer) ?? tripDefaults.buffer,
     destination: firstValue(params.destination) ?? tripDefaults.destination,
     origin: firstValue(params.origin) ?? tripDefaults.origin,
+    originAddress: firstValue(params.originAddress),
+    originLat: firstValue(params.originLat),
+    originLng: firstValue(params.originLng),
+    originPlaceName: firstValue(params.originPlaceName),
+    originSource,
   };
 }
 
@@ -233,13 +251,23 @@ export function createTripQuery(
   input: TripInput,
   extra: Record<string, string> = {},
 ) {
-  return new URLSearchParams({
+  const params = new URLSearchParams({
     arrival: input.arrival,
     buffer: input.buffer,
     destination: input.destination,
     origin: input.origin,
     ...extra,
-  }).toString();
+  });
+
+  if (input.originAddress) params.set("originAddress", input.originAddress);
+  if (input.originLat) params.set("originLat", input.originLat);
+  if (input.originLng) params.set("originLng", input.originLng);
+  if (input.originPlaceName) {
+    params.set("originPlaceName", input.originPlaceName);
+  }
+  if (input.originSource) params.set("originSource", input.originSource);
+
+  return params.toString();
 }
 
 export function createTripHref(

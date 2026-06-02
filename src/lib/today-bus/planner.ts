@@ -11,8 +11,13 @@ import {
 import {
   getTagoDemoSnapshot,
   tagoDemoIdentifiers,
+  todayBusDemoItinerary,
   type TagoDemoSnapshot,
 } from "@/lib/transit/tago-provider";
+import type {
+  TodayBusItinerary,
+  TodayBusOriginPlaceSource,
+} from "@/lib/transit/demo-route";
 import { getSafeTagoErrorMessage, type TagoArrival } from "@/lib/tago/client";
 import {
   getGumiBisScheduleTypeForDate,
@@ -38,6 +43,7 @@ export type TodayBusFallback = {
 export type TodayBusPlanResponse = {
   effectiveInput: TripInput;
   fallback?: TodayBusFallback;
+  itinerary: TodayBusItinerary;
   plans: BusPlan[];
   recoveryPlan: BusPlan;
   recommendedPlan: BusPlan;
@@ -64,18 +70,72 @@ export type TodayBusPlanResponse = {
   warnings: string[];
 };
 
-const homeWalkMinutes = 10;
+const homeWalkMinutes =
+  todayBusDemoItinerary.boardingStop.walkMinutesFromOrigin;
 const stopWaitMinutes = 5;
 const busRideMinutes = 28;
-const destinationWalkMinutes = 7;
+const destinationWalkMinutes =
+  todayBusDemoItinerary.destinationPlace.walkMinutesFromAlightingStop;
 const kstOffsetHours = 9;
 const seoulTimeZone = "Asia/Seoul";
 
 function isDemoInput(input: TripInput) {
-  return (
-    input.origin === tripDefaults.origin &&
-    input.destination === tripDefaults.destination
+  return input.destination === tripDefaults.destination;
+}
+
+function parseCoordinate(value: string | undefined) {
+  if (!value) return undefined;
+
+  const coordinate = Number(value);
+  return Number.isFinite(coordinate) ? coordinate : undefined;
+}
+
+function getOriginPlaceSource(
+  value: TripInput["originSource"],
+): TodayBusOriginPlaceSource {
+  return value === "kakao_keyword" ? value : "manual";
+}
+
+function createItinerary(input: TripInput): TodayBusItinerary {
+  const label =
+    input.originPlaceName?.trim() ||
+    input.origin.trim() ||
+    todayBusDemoItinerary.originPlace.label;
+  const lat = parseCoordinate(input.originLat);
+  const lng = parseCoordinate(input.originLng);
+  const hasSelectedOrigin = Boolean(
+    input.originPlaceName || input.originAddress || lat || lng,
   );
+
+  return {
+    ...todayBusDemoItinerary,
+    originPlace: {
+      address: input.originAddress,
+      label,
+      lat,
+      lng,
+      source: hasSelectedOrigin
+        ? getOriginPlaceSource(input.originSource)
+        : todayBusDemoItinerary.originPlace.source,
+    },
+  };
+}
+
+function hasCustomOriginPlace(input: TripInput) {
+  const itinerary = createItinerary(input);
+
+  return (
+    itinerary.originPlace.label !== todayBusDemoItinerary.originPlace.label ||
+    Boolean(itinerary.originPlace.address) ||
+    itinerary.originPlace.lat !== undefined ||
+    itinerary.originPlace.lng !== undefined
+  );
+}
+
+function createCustomOriginWarning(input: TripInput) {
+  const itinerary = createItinerary(input);
+
+  return `출발 위치는 ${itinerary.originPlace.label}입니다. 현재 탑승 정류장 자동 선택은 아직 지원하지 않아 ${todayBusDemoItinerary.boardingStop.name} 정류장 기준으로 계산합니다.`;
 }
 
 function getKstDateParts(date: Date) {
@@ -289,6 +349,7 @@ function createLivePlan(
     ...recommendedPlan,
     arrivalTime: formatTime(destinationArrival),
     boardingTime: formatTime(boarding),
+    busStopName: todayBusDemoItinerary.boardingStop.name,
     busStopArrivalTime: formatTime(busStopArrival),
     departureTime: formatTime(departure),
     dropOffTime: formatTime(dropOff),
@@ -305,27 +366,27 @@ function createLivePlan(
     summaryLine: `대기 ${stopWaitMinutes}분 · ${formatSlackSummary(slackMinutes)}`,
     timeline: [
       {
-        detail: `${tagoDemoIdentifiers.originNodeName}까지 ${homeWalkMinutes}분`,
+        detail: `${todayBusDemoItinerary.boardingStop.name} 정류장까지 도보 ${homeWalkMinutes}분`,
         kind: "home",
         label: "집에서 출발",
         time: formatTime(departure),
       },
       {
-        detail: `${stopWaitMinutes}분 대기`,
+        detail: `정류장번호 ${todayBusDemoItinerary.boardingStop.stopNo} · ${stopWaitMinutes}분 대기`,
         kind: "stop",
-        label: "정류장 도착",
+        label: `${todayBusDemoItinerary.boardingStop.name} 도착`,
         time: formatTime(busStopArrival),
       },
       {
-        detail: `약 ${busRideMinutes}분 이동`,
+        detail: `약 ${busRideMinutes}분 이동 · ${todayBusDemoItinerary.alightingStop.name} 하차`,
         kind: "bus",
-        label: `${tagoDemoIdentifiers.routeNo}번 버스 탑승`,
+        label: `${tagoDemoIdentifiers.routeNo}번 ${todayBusDemoItinerary.route.directionLabel} 탑승`,
         time: formatTime(boarding),
       },
       {
-        detail: `${input.destination}까지 도보 ${destinationWalkMinutes}분`,
+        detail: `${todayBusDemoItinerary.destinationPlace.label}까지 도보 ${destinationWalkMinutes}분`,
         kind: "walk",
-        label: `${tagoDemoIdentifiers.destinationNodeName} 하차`,
+        label: `${todayBusDemoItinerary.alightingStop.name} 하차`,
         time: formatTime(dropOff),
       },
       {
@@ -335,7 +396,7 @@ function createLivePlan(
           safetyBufferMinutes,
         ),
         kind: "arrival",
-        label: `${input.destination} 도착`,
+        label: `${todayBusDemoItinerary.destinationPlace.label} 도착`,
         time: formatTime(destinationArrival),
       },
     ],
@@ -434,6 +495,7 @@ function createTimetableBusPlan({
     ...recommendedPlan,
     arrivalTime: formatTime(candidate.arrivalTime),
     boardingTime: formatTime(candidate.boardingTime),
+    busStopName: todayBusDemoItinerary.boardingStop.name,
     busStopArrivalTime: formatTime(candidate.busStopArrivalTime),
     departureTime: formatTime(candidate.departureTime),
     detailHrefId: isPrimary
@@ -467,15 +529,15 @@ function createTimetableBusPlan({
         )} 도착`,
     timeline: [
       {
-        detail: `${tagoDemoIdentifiers.originNodeName}까지 ${homeWalkMinutes}분`,
+        detail: `${todayBusDemoItinerary.boardingStop.name} 정류장까지 도보 ${homeWalkMinutes}분`,
         kind: "home",
         label: "집에서 출발",
         time: formatTime(candidate.departureTime),
       },
       {
-        detail: `${stopWaitMinutes}분 대기`,
+        detail: `정류장번호 ${todayBusDemoItinerary.boardingStop.stopNo} · ${stopWaitMinutes}분 대기`,
         kind: "stop",
-        label: "정류장 도착",
+        label: `${todayBusDemoItinerary.boardingStop.name} 도착`,
         time: formatTime(candidate.busStopArrivalTime),
       },
       {
@@ -483,13 +545,13 @@ function createTimetableBusPlan({
           candidate.routeStartTime,
         )} 출발표 기준 · 정류장 통과 추정`,
         kind: "bus",
-        label: `${tagoDemoIdentifiers.routeNo}번 버스 탑승`,
+        label: `${tagoDemoIdentifiers.routeNo}번 ${todayBusDemoItinerary.route.directionLabel} 탑승`,
         time: formatTime(candidate.boardingTime),
       },
       {
-        detail: `${input.destination}까지 도보 ${destinationWalkMinutes}분`,
+        detail: `${todayBusDemoItinerary.destinationPlace.label}까지 도보 ${destinationWalkMinutes}분`,
         kind: "walk",
-        label: `${tagoDemoIdentifiers.destinationNodeName} 하차`,
+        label: `${todayBusDemoItinerary.alightingStop.name} 하차`,
         time: formatTime(candidate.dropOffTime),
       },
       {
@@ -499,7 +561,7 @@ function createTimetableBusPlan({
           safetyBufferMinutes,
         ),
         kind: "arrival",
-        label: `${input.destination} 도착`,
+        label: `${todayBusDemoItinerary.destinationPlace.label} 도착`,
         time: formatTime(candidate.arrivalTime),
       },
     ],
@@ -580,14 +642,22 @@ function createMockResponse(
   tago?: TodayBusPlanResponse["tago"],
   fallback?: TodayBusFallback,
 ): TodayBusPlanResponse {
+  const effectiveInput = {
+    arrival: tripDefaults.arrival,
+    buffer: requestedInput.buffer,
+    destination: tripDefaults.destination,
+    origin: requestedInput.origin || tripDefaults.origin,
+    originAddress: requestedInput.originAddress,
+    originLat: requestedInput.originLat,
+    originLng: requestedInput.originLng,
+    originPlaceName: requestedInput.originPlaceName,
+    originSource: requestedInput.originSource,
+  } satisfies TripInput;
+
   return {
-    effectiveInput: {
-      arrival: tripDefaults.arrival,
-      buffer: requestedInput.buffer,
-      destination: tripDefaults.destination,
-      origin: tripDefaults.origin,
-    },
+    effectiveInput,
     fallback,
+    itinerary: createItinerary(effectiveInput),
     plans: busPlans,
     recoveryPlan,
     recommendedPlan,
@@ -632,6 +702,7 @@ async function createTimetableResponse({
 
   return {
     effectiveInput: requestedInput,
+    itinerary: createItinerary(requestedInput),
     plans: timetablePlans.plans,
     recoveryPlan: timetablePlans.recoveryPlan,
     recommendedPlan: timetablePlans.recommendedPlan,
@@ -670,6 +741,10 @@ export async function createTodayBusPlanResponseWithDependencies(
   const warnings: string[] = [];
   const now = dependencies.now();
   const desiredArrivalTime = parseTodayArrival(requestedInput, now);
+
+  if (hasCustomOriginPlace(requestedInput)) {
+    warnings.push(createCustomOriginWarning(requestedInput));
+  }
 
   if (!isDemoInput(requestedInput)) {
     const fallback = {
@@ -737,6 +812,7 @@ export async function createTodayBusPlanResponseWithDependencies(
       const livePlans = [livePlan, ...busPlans.filter((plan) => !plan.primary)];
       return {
         effectiveInput: requestedInput,
+        itinerary: createItinerary(requestedInput),
         plans: livePlans,
         recoveryPlan,
         recommendedPlan: livePlan,

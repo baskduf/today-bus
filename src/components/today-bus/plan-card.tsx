@@ -8,11 +8,13 @@ import {
   type TripInput,
   createTripHref,
 } from "@/lib/today-bus/mock-plans";
+import type { TodayBusItinerary } from "@/lib/transit/demo-route";
 import { ActionLink } from "./action-link";
 
 type PlanCardProps = {
   anchorId?: string;
   emphasis?: "recovery";
+  itinerary: TodayBusItinerary;
   plan: BusPlan;
   tripInput: TripInput;
 };
@@ -25,7 +27,13 @@ const statusAccents = {
   too_early: obColors.yellow,
 } as const;
 
-export function PlanCard({ anchorId, emphasis, plan, tripInput }: PlanCardProps) {
+export function PlanCard({
+  anchorId,
+  emphasis,
+  itinerary,
+  plan,
+  tripInput,
+}: PlanCardProps) {
   const status = planStatusMeta[plan.status];
   const detailHref = createTripHref("/plans/recommended", tripInput);
   const isRecovery = emphasis === "recovery";
@@ -71,7 +79,8 @@ export function PlanCard({ anchorId, emphasis, plan, tripInput }: PlanCardProps)
             {plan.departureTime} 집에서 출발
           </p>
           <p className="mt-2 text-[17px] font-bold text-[var(--ob-text2)]">
-            {tripInput.origin}에서 {tripInput.destination}까지
+            {itinerary.originPlace.label}에서{" "}
+            {itinerary.boardingStop.name} 정류장으로
           </p>
         </div>
 
@@ -83,22 +92,26 @@ export function PlanCard({ anchorId, emphasis, plan, tripInput }: PlanCardProps)
           <div className="flex items-center gap-2 text-[var(--ob-text2)]">
             <IconBus size={24} stroke={obColors.ink} />
             <span>
-              {plan.boardingTime} {plan.busNumber} 탑승
+              {plan.boardingTime} {plan.busNumber} {itinerary.route.directionLabel}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <IconPin size={24} stroke={obColors.ink} />
-            <span>{plan.arrivalTime} 도착</span>
+            <span>
+              {plan.arrivalTime} {itinerary.destinationPlace.label} 도착
+            </span>
           </div>
         </div>
 
         {plan.primary ? (
           <div className="rounded-[20px] border-2 border-dashed border-[var(--ob-ink-soft)] bg-white px-4 py-3">
             <p className="text-[19px] font-black text-[var(--ob-text)]">
-              {plan.boardingTime} {plan.busNumber} 탑승
+              {plan.boardingTime} {itinerary.boardingStop.name}에서{" "}
+              {plan.busNumber} 탑승
             </p>
             <p className="mt-1 text-[17px] font-bold text-[var(--ob-text2)]">
-              {plan.arrivalTime} {tripInput.destination} 도착
+              {plan.dropOffTime} {itinerary.alightingStop.name} 하차 ·{" "}
+              {plan.arrivalTime} {itinerary.destinationPlace.label} 도착
             </p>
             <p className="mt-2 text-[17px] font-bold text-[var(--ob-green-deep)]">
               {plan.summaryLine}
