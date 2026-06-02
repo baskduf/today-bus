@@ -52,6 +52,8 @@ const homeWalkMinutes = 10;
 const stopWaitMinutes = 5;
 const busRideMinutes = 28;
 const destinationWalkMinutes = 7;
+const kstOffsetHours = 9;
+const seoulTimeZone = "Asia/Seoul";
 
 function isDemoInput(input: TripInput) {
   return (
@@ -60,13 +62,56 @@ function isDemoInput(input: TripInput) {
   );
 }
 
-function parseTodayArrival(input: TripInput) {
+function getKstDateParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: seoulTimeZone,
+    year: "numeric",
+  }).formatToParts(date);
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
+
+  return {
+    day: Number(values.day),
+    month: Number(values.month),
+    year: Number(values.year),
+  };
+}
+
+function createKstDate({
+  day,
+  hour,
+  minute,
+  month,
+  year,
+}: {
+  day: number;
+  hour: number;
+  minute: number;
+  month: number;
+  year: number;
+}) {
+  return new Date(
+    Date.UTC(year, month - 1, day, hour - kstOffsetHours, minute, 0, 0),
+  );
+}
+
+function parseTodayArrival(input: TripInput, now = new Date()) {
   const match = input.arrival.match(/^오늘\s+(\d{1,2}):(\d{2})$/);
   if (!match) return undefined;
 
-  const date = new Date();
-  date.setHours(Number(match[1]), Number(match[2]), 0, 0);
-  return date;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return undefined;
+
+  return createKstDate({
+    ...getKstDateParts(now),
+    hour,
+    minute,
+  });
 }
 
 function formatTime(date: Date) {
@@ -74,7 +119,7 @@ function formatTime(date: Date) {
     hour: "2-digit",
     hour12: false,
     minute: "2-digit",
-    timeZone: "Asia/Seoul",
+    timeZone: seoulTimeZone,
   }).format(date);
 }
 
@@ -88,22 +133,68 @@ function getArrivalSeconds(arrival: TagoArrival) {
     : undefined;
 }
 
-function classifyPlan(arrivalTime: Date, desiredArrivalTime?: Date) {
-  if (!desiredArrivalTime) return "caution" as const;
-
-  const slackMinutes = Math.floor(
+function getSlackMinutes(arrivalTime: Date, desiredArrivalTime: Date) {
+  return Math.floor(
     (desiredArrivalTime.getTime() - arrivalTime.getTime()) / 60_000,
   );
+}
 
+function parseSafetyBufferMinutes(input: TripInput) {
+  const buffer = Number(input.buffer);
+  return Number.isFinite(buffer) && buffer > 0
+    ? buffer
+    : Number(tripDefaults.buffer);
+}
+
+function classifyPlan(slackMinutes: number, safetyBufferMinutes: number) {
   if (slackMinutes < 0) return "late" as const;
   if (slackMinutes > 30) return "too_early" as const;
-  if (slackMinutes >= 10) return "safe" as const;
+  if (slackMinutes >= safetyBufferMinutes) return "safe" as const;
   return "caution" as const;
+}
+
+function formatSlackSummary(slackMinutes: number) {
+  if (slackMinutes < 0) return `${Math.abs(slackMinutes)}분 늦음`;
+  if (slackMinutes > 30) return `${slackMinutes}분 일찍 도착`;
+  return `여유 ${slackMinutes}분`;
+}
+
+function createLiveStatusLine(
+  status: BusPlan["status"],
+  slackMinutes: number,
+  safetyBufferMinutes: number,
+) {
+  if (status === "late") {
+    return `도착 희망보다 ${Math.abs(slackMinutes)}분 늦어요`;
+  }
+
+  if (status === "too_early") {
+    return `너무 일찍 도착: ${slackMinutes}분 여유`;
+  }
+
+  if (status === "safe") {
+    return `안전 여유 ${safetyBufferMinutes}분 이상 확보`;
+  }
+
+  return `여유가 안전 기준 ${safetyBufferMinutes}분보다 적어요`;
+}
+
+function createArrivalDetail(
+  input: TripInput,
+  slackMinutes: number,
+  safetyBufferMinutes: number,
+) {
+  if (slackMinutes < 0) {
+    return `${input.arrival}보다 ${Math.abs(slackMinutes)}분 늦어요`;
+  }
+
+  return `${input.arrival} 기준 여유 ${slackMinutes}분 · 안전 기준 ${safetyBufferMinutes}분`;
 }
 
 function createLivePlan(
   input: TripInput,
   snapshot: TagoDemoSnapshot,
+  desiredArrivalTime: Date,
 ): BusPlan | undefined {
   const arrivalCandidates = snapshot.arrivals
     .map((arrival) => ({ arrival, seconds: getArrivalSeconds(arrival) }))
@@ -125,8 +216,9 @@ function createLivePlan(
   );
   const dropOff = addMinutes(boarding, busRideMinutes);
   const destinationArrival = addMinutes(dropOff, destinationWalkMinutes);
-  const desiredArrivalTime = parseTodayArrival(input);
-  const status = classifyPlan(destinationArrival, desiredArrivalTime);
+  const safetyBufferMinutes = parseSafetyBufferMinutes(input);
+  const slackMinutes = getSlackMinutes(destinationArrival, desiredArrivalTime);
+  const status = classifyPlan(slackMinutes, safetyBufferMinutes);
   const missedDelayMinutes = arrivalCandidates[1]
     ? Math.ceil((arrivalCandidates[1].seconds - firstArrival.seconds) / 60)
     : undefined;
@@ -140,14 +232,15 @@ function createLivePlan(
     dropOffTime: formatTime(dropOff),
     missedDelayMinutes,
     status,
-    statusLine:
-      status === "late"
-        ? "도착 희망보다 늦어요"
-        : "실시간 도착정보로 계산한 플랜이에요",
+    statusLine: createLiveStatusLine(
+      status,
+      slackMinutes,
+      safetyBufferMinutes,
+    ),
     statusNote: missedDelayMinutes
       ? `놓치면 ${missedDelayMinutes}분 늦어요`
       : "다음 버스 지연 시간은 아직 확인되지 않았어요",
-    summaryLine: `대기 ${stopWaitMinutes}분 · 실시간`,
+    summaryLine: `대기 ${stopWaitMinutes}분 · ${formatSlackSummary(slackMinutes)}`,
     timeline: [
       {
         detail: `${tagoDemoIdentifiers.originNodeName}까지 ${homeWalkMinutes}분`,
@@ -174,9 +267,11 @@ function createLivePlan(
         time: formatTime(dropOff),
       },
       {
-        detail: desiredArrivalTime
-          ? `${input.arrival} 기준으로 판단`
-          : "도착 희망 시간을 해석하지 못했어요",
+        detail: createArrivalDetail(
+          input,
+          slackMinutes,
+          safetyBufferMinutes,
+        ),
         kind: "arrival",
         label: `${input.destination} 도착`,
         time: formatTime(destinationArrival),
@@ -213,6 +308,7 @@ export async function createTodayBusPlanResponse(
   requestedInput: TripInput,
 ): Promise<TodayBusPlanResponse> {
   const warnings: string[] = [];
+  const desiredArrivalTime = parseTodayArrival(requestedInput);
 
   if (!isDemoInput(requestedInput)) {
     const fallback = {
@@ -225,7 +321,7 @@ export async function createTodayBusPlanResponse(
     return createMockResponse(requestedInput, warnings, undefined, fallback);
   }
 
-  if (!parseTodayArrival(requestedInput)) {
+  if (!desiredArrivalTime) {
     const fallback = {
       message:
         "현재 TAGO 실시간 연동은 '오늘 HH:mm' 형식의 당일 도착 희망만 해석합니다. mock 플랜을 보여줍니다.",
@@ -247,7 +343,11 @@ export async function createTodayBusPlanResponse(
       routeId: tagoDemoIdentifiers.routeId,
       routeNo: tagoDemoIdentifiers.routeNo,
     };
-    const livePlan = createLivePlan(requestedInput, snapshot);
+    const livePlan = createLivePlan(
+      requestedInput,
+      snapshot,
+      desiredArrivalTime,
+    );
 
     if (!livePlan) {
       const fallback = {
