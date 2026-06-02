@@ -1,0 +1,19 @@
+{
+  "watched_paths": [
+    "src/**",
+    "public/**",
+    "next.config.*",
+    "package.json"
+  ],
+  "decision_paths": [
+    "docs/decisions/**"
+  ],
+  "ignored_paths": [
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/__snapshots__/**",
+    "docs/**",
+    "scripts/**",
+    "harness-starter-kit/**"
+  ]
+}

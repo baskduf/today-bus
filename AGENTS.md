@@ -65,6 +65,8 @@ Add or update durable docs when behavior, architecture, commands, conventions, k
 
 For structural product or workflow changes, mock/API boundary choices, major data models or state classifications, or UX principles that become code structure, add a `docs/decisions/` record or explicitly state which existing ADR covers the decision. A domain glossary update does not replace a decision record.
 
+If `npm run check:harness` prints a decision-memory warning, resolve it before the final report by adding or updating a decision record, citing the existing ADR that covers the change, or explicitly explaining why no decision memory is needed.
+
 For live external API or public-data work, use `docs/checklists/external-api-work.md` and keep live smoke checks separate from `check:harness` unless they are stable and safe by default.
 
 ## Completion Criteria

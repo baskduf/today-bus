@@ -4,6 +4,7 @@ import { lstat, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { spawnSync } from "node:child_process";
 
 const root = process.cwd();
 
@@ -45,10 +46,38 @@ const requiredPackageScripts = ["lint", "typecheck", "build", "check:harness"];
 
 const markdownLinkPattern = /(?<!!)\[[^\]\n]+\]\(([^)\n]+)\)/g;
 
+const defaultDecisionMemoryRules = {
+  watched_paths: [
+    "src/**",
+    "app/**",
+    "lib/**",
+    "components/**",
+    "pages/**",
+  ],
+  decision_paths: ["docs/decisions/**"],
+  ignored_paths: [
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/__snapshots__/**",
+    "docs/**",
+    "scripts/**",
+    "templates/**",
+  ],
+};
+
+const decisionMemoryQuestion =
+  "Does this change user workflow, input contract, input semantics, state " +
+  "normalization, API request or response shape, fallback policy, or displayed " +
+  "decision criteria?";
+
 const failures = [];
 
 function toPosix(value) {
   return value.split(path.sep).join("/");
+}
+
+function normalizeGitPath(value) {
+  return value.trim().replaceAll("\\", "/");
 }
 
 function isIgnored(relativePath) {
@@ -81,6 +110,170 @@ async function walk(directory, visitor) {
 
 async function readJson(filePath) {
   return JSON.parse(await readFile(path.join(root, filePath), "utf8"));
+}
+
+function runGit(args) {
+  return spawnSync("git", args, {
+    cwd: root,
+    encoding: "utf8",
+  });
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
+}
+
+function globToRegExp(pattern) {
+  const normalized = normalizeGitPath(pattern);
+  let source = "";
+
+  for (let index = 0; index < normalized.length; index += 1) {
+    const char = normalized[index];
+
+    if (char === "*") {
+      if (normalized[index + 1] === "*") {
+        if (normalized[index + 2] === "/") {
+          source += "(?:.*/)?";
+          index += 2;
+          continue;
+        }
+
+        source += ".*";
+        index += 1;
+        continue;
+      }
+
+      source += "[^/]*";
+      continue;
+    }
+
+    source += escapeRegExp(char);
+  }
+
+  return new RegExp(`^${source}$`);
+}
+
+function matchesAny(relativePath, patterns) {
+  const normalized = normalizeGitPath(relativePath);
+  return patterns.some((pattern) => globToRegExp(pattern).test(normalized));
+}
+
+async function loadDecisionMemoryRules() {
+  const rulesPath = path.join(root, ".harness/decision-memory-rules.json");
+
+  if (!existsSync(rulesPath)) {
+    return defaultDecisionMemoryRules;
+  }
+
+  const data = await readJson(".harness/decision-memory-rules.json");
+  const rules = {};
+
+  for (const [key, fallback] of Object.entries(defaultDecisionMemoryRules)) {
+    rules[key] = Array.isArray(data[key])
+      ? data[key].map((item) => String(item))
+      : fallback;
+  }
+
+  return rules;
+}
+
+async function addUntrackedPath(paths, relativePath) {
+  const absolutePath = path.join(root, relativePath);
+
+  try {
+    const stats = await lstat(absolutePath);
+
+    if (stats.isDirectory()) {
+      await walk(absolutePath, async (_absolutePath, childRelativePath) => {
+        paths.add(normalizeGitPath(childRelativePath));
+      });
+      return;
+    }
+
+    if (stats.isFile()) {
+      paths.add(normalizeGitPath(relativePath));
+    }
+  } catch {
+    // Ignore paths that disappear while the check is running.
+  }
+}
+
+async function getChangedPaths() {
+  const paths = new Set();
+  const diff = runGit([
+    "diff",
+    "--name-only",
+    "--diff-filter=ACDMRTUXB",
+    "HEAD",
+    "--",
+  ]);
+
+  if (diff.status === 0) {
+    for (const line of diff.stdout.split("\n")) {
+      if (line.trim()) {
+        paths.add(normalizeGitPath(line));
+      }
+    }
+  }
+
+  const status = runGit(["status", "--porcelain"]);
+
+  if (status.status === 0) {
+    for (const line of status.stdout.split("\n")) {
+      if (line.startsWith("?? ")) {
+        await addUntrackedPath(paths, line.slice(3));
+      }
+    }
+  }
+
+  return [...paths].sort();
+}
+
+async function checkDecisionMemoryWarning() {
+  const insideWorkTree = runGit(["rev-parse", "--is-inside-work-tree"]);
+
+  if (
+    insideWorkTree.status !== 0 ||
+    insideWorkTree.stdout.trim() !== "true"
+  ) {
+    return;
+  }
+
+  const rules = await loadDecisionMemoryRules();
+  const changedPaths = await getChangedPaths();
+  const watchedPaths = changedPaths.filter(
+    (relativePath) =>
+      matchesAny(relativePath, rules.watched_paths) &&
+      !matchesAny(relativePath, rules.ignored_paths),
+  );
+  const decisionPaths = changedPaths.filter((relativePath) =>
+    matchesAny(relativePath, rules.decision_paths),
+  );
+
+  if (watchedPaths.length === 0 || decisionPaths.length > 0) {
+    return;
+  }
+
+  console.warn(
+    "Decision memory review warning: watched implementation paths changed " +
+      "without a docs/decisions change.",
+  );
+  console.warn(`Question: ${decisionMemoryQuestion}`);
+  console.warn("Changed watched paths:");
+
+  for (const relativePath of watchedPaths.slice(0, 10)) {
+    console.warn(`- ${relativePath}`);
+  }
+
+  if (watchedPaths.length > 10) {
+    console.warn(`- ... ${watchedPaths.length - 10} more`);
+  }
+
+  console.warn("");
+  console.warn("Before the final report, do one of the following:");
+  console.warn("- add or update a decision record");
+  console.warn("- cite the existing ADR that covers the change");
+  console.warn("- explain why no decision memory is needed");
 }
 
 async function checkPackageScripts() {
@@ -243,6 +436,7 @@ async function main() {
   checkDesignSystem();
   await checkMarkdownLinks();
   await checkDriftProneFiles();
+  await checkDecisionMemoryWarning();
 
   if (failures.length > 0) {
     for (const failure of failures) {

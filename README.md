@@ -27,7 +27,7 @@ npm run build
 npm run check:harness
 ```
 
-`npm run check:harness` runs the local harness verification path for this repository: lint, TypeScript, production build, and lightweight docs/structure drift checks.
+`npm run check:harness` runs the local harness verification path for this repository: lint, TypeScript, production build, lightweight docs/structure drift checks, and a non-failing decision-memory warning for implementation diffs that may need an ADR.
 
 `npm run test:planner` runs the focused source-branch checks for TAGO, Gumi BIS timetable, and mock planner fallback behavior.
 

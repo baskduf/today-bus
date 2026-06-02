@@ -24,6 +24,7 @@
 - `docs/harness/adoption-report.md`: recorded this adoption report.
 - `docs/design/`: added mockup source tracking and component rules after the today-bus mockup reference was provided.
 - `src/components/` and `src/lib/design/`: added shared today-bus UI tokens, doodle icons, and sketch-style primitives.
+- `.harness/decision-memory-rules.json` and `scripts/check-harness.mjs`: added a non-failing decision-memory warning after `/harness update` refreshed the starter kit to `30a030573aa232dc71d876242621a665fbba8a86`.
 
 ## Existing Structures Reused
 
@@ -98,7 +99,7 @@ python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report
 
 ## Drift Checks Added
 
-- Baseline doc or structure hygiene checks: local Markdown links, scratch filenames, required package scripts, npm lockfile, ignored generated/reference paths, required App Router files, and required shared design-system files.
+- Baseline doc or structure hygiene checks: local Markdown links, scratch filenames, required package scripts, npm lockfile, ignored generated/reference paths, required App Router files, required shared design-system files, and a non-failing decision-memory warning for watched implementation diffs without a decision-record change.
 - Encoding or localization hygiene checks: not added. The repository has no localized source text, XML resources, PDF-derived docs, or prior mojibake evidence.
 - Target-specific architecture checks: required `src/app/layout.tsx`, `src/app/page.tsx`, `next.config.ts`, npm lockfile, and Next.js docs rule in `AGENTS.md`.
 - Not added: import boundary, unused export, and CI checks were deferred because the app currently has only the create-next-app starter surface.

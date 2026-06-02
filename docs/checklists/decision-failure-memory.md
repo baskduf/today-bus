@@ -1,26 +1,32 @@
 # Decision And Failure Memory Checklist
 
-Use this checklist to decide whether a change needs durable repository memory.
-The default is not to write an ADR for every change. Record memory when a
-future agent would otherwise repeat the same decision, mistake, or investigation.
+Use this checklist to reduce overdocumentation pressure while still preserving
+high-value memory for future agents.
+
+The default is not "write an ADR for every change." The default is: record
+durable memory when a future agent would otherwise repeat the same decision,
+mistake, or investigation.
 
 ## Choose The Artifact
 
-| Situation | Prefer | Usually skip when |
-| --- | --- | --- |
-| Structural product, workflow, API boundary, runtime, state, or integration policy changed | `docs/decisions/*.md` | The task follows an existing ADR or local pattern |
-| A runtime or integration failure should not recur | `docs/failures/*.md` | The issue was transient or already covered |
-| Provider or product terms need consistent language | `docs/domain/*.md` | The term is obvious and documented nearby |
-| A repeated coding or review habit changed | `docs/conventions/*.md` or `AGENTS.md` | The habit applies only to one narrow file |
-| A verification script becomes normal workflow | `README.md`, `AGENTS.md`, or `docs/conventions/*.md` | The check was a one-off diagnostic |
-| A small implementation detail changed | Final report or check note | The change creates a new boundary or recurring risk |
+| Situation | Prefer | Examples | Usually skip when |
+| --- | --- | --- | --- |
+| Structural product, workflow, API boundary, runtime, state, or integration policy changed | `docs/decisions/*.md` | route model, service boundary, runtime choice, state classification, live/mock policy | the task follows an existing ADR or local pattern |
+| A runtime or integration failure should not recur | `docs/failures/*.md` | TLS/certificate failure, 5xx path, secret leak risk, provider schema mismatch, repeated failed check | the issue was transient and no prevention or detection changed |
+| Provider or product terms need consistent language | `docs/domain/*.md` | empty-result meaning, provider status codes, itinerary states, permission states | the term is obvious and documented nearby |
+| A repeated coding or review habit changed | `docs/conventions/*.md` or `AGENTS.md` | route handler rules, env handling, generated-file policy, verification command | the habit applies only to one narrow file |
+| A custom check becomes part of normal verification | `README.md`, `AGENTS.md`, package scripts, or `docs/conventions/*.md` | `check:harness`, API smoke script, route table check | the check was a one-off diagnostic |
+| A small implementation detail changed | final report or check note | test selector tweak, response field rename covered by tests, copy fix | the change creates a new boundary or recurring risk |
 
 ## Decision Record Triggers
 
 Consider a decision record when the change:
 
-- selects or changes architecture, router shape, persistence, runtime, state, or integration policy
+- selects or changes architecture, router shape, persistence, runtime, state, or
+  integration policy
 - codifies product workflow structure in code
+- changes input contracts, input semantics, state normalization, API request or
+  response shape, fallback policy, or displayed decision criteria
 - defines live/mock fallback policy or external API ownership
 - introduces a durable data model or state classification
 - changes a rule future agents are likely to re-litigate
@@ -28,20 +34,22 @@ Consider a decision record when the change:
 No decision record is usually needed when:
 
 - the change is a narrow bug fix inside an existing boundary
-- an ADR already covers the decision and the final report cites it
+- the decision is already covered by an ADR and the final report cites it
 - tests or conventions document the behavior clearly enough
 - the only change is adding a check that enforces an existing documented rule
 
 ## Failure Record Triggers
 
-Record a failure when the issue should not recur and at least one of these is true:
+Record a failure when the issue should not recur and at least one of these is
+true:
 
 - user-visible runtime failure, crash, 5xx path, or broken production-like flow
 - security, permission, privacy, or data-loss risk
 - failed CI or harness check that revealed a real bug or drift
 - repeated agent mistake or previously identified bug path
-- external API, certificate, schema, parser, or environment mismatch
-- local/CI or local/server runtime mismatch
+- external API, certificate, schema, parser, or environment mismatch that cost
+  investigation time
+- cross-environment mismatch such as local passing while CI fails
 
 No failure record is usually needed when:
 
@@ -50,11 +58,25 @@ No failure record is usually needed when:
 - a normal test failure was fixed immediately and revealed no broader bug path
 - the final report can name the skipped reason without losing useful memory
 
+## Boundary Examples
+
+| Change | Likely memory |
+| --- | --- |
+| Add a planner branch that changes product workflow shape | ADR, or cite an existing workflow ADR |
+| Add a route handler that proxies a public-data API with server-only secrets | ADR if it creates the integration boundary; convention if it follows an existing one |
+| Change a form field from optional to required, normalize a state differently, or show a new ranking criterion | ADR candidate if it changes input semantics or displayed decision criteria; otherwise cite the existing ADR or report why no new decision is needed |
+| Handle provider zero-result responses deliberately | Domain note or test; ADR only if it changes product behavior |
+| Fix a TLS certificate failure that Node fetch hits for a provider endpoint | Failure record if future agents should not retry the same path blindly |
+| Add `scripts/check_<area>.mjs` for a repeated backend smoke check | README or `AGENTS.md` if it becomes normal verification |
+| Add one response field and update tests | Final report or check note, unless it changes the domain model |
+
 ## Final Report Language
 
 When no durable memory is added for a non-trivial change, report the reason:
 
 ```text
-Decision docs: skipped because this follows ADR 0005 and does not introduce a new boundary.
-Failure memory: skipped because no user-visible failure or recurring bug path changed.
+Decision docs: skipped because this follows ADR 0002 and does not introduce a
+new boundary.
+Failure memory: skipped because the failing request was transient and no
+reproducible bug path or prevention rule changed.
 ```
