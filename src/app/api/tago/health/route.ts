@@ -18,9 +18,11 @@ export async function GET() {
         },
         fallbackRequired: health.fallbackRequired,
         keyConfigured: health.keyConfigured,
+        mockFallbackRequired: health.mockFallbackRequired,
         ok: health.ok,
         routeLookup: health.routeLookup,
         routeStopOrder: health.routeStopOrder,
+        timetableLookup: health.timetableLookup,
       },
       { status },
     );

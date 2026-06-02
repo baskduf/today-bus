@@ -36,9 +36,18 @@ function summarizeHealth(body) {
     cityLookupOk: Boolean(body?.cityLookup?.ok),
     fallbackRequired: Boolean(body?.fallbackRequired),
     keyConfigured: Boolean(body?.keyConfigured),
+    mockFallbackRequired: Boolean(body?.mockFallbackRequired),
     ok: Boolean(body?.ok),
     routeLookupOk: Boolean(body?.routeLookup?.ok),
     routeStopOrderOk: Boolean(body?.routeStopOrder?.ok),
+    timetable: body?.timetableLookup
+      ? {
+          departureCount: body.timetableLookup.departureCount,
+          ok: Boolean(body.timetableLookup.ok),
+          routeId: body.timetableLookup.routeId,
+          scheduleType: body.timetableLookup.scheduleType,
+        }
+      : undefined,
   };
 }
 
@@ -47,6 +56,14 @@ function summarizePlans(body) {
     fallback: body?.fallback,
     source: body?.source,
     tagoArrivalCount: body?.tago?.arrivalCount,
+    timetable: body?.timetable
+      ? {
+          departureCount: body.timetable.departureCount,
+          originOffsetMinutes: body.timetable.originOffsetMinutes,
+          routeId: body.timetable.routeId,
+          scheduleType: body.timetable.scheduleType,
+        }
+      : undefined,
     warningCount: Array.isArray(body?.warnings) ? body.warnings.length : 0,
     warnings: Array.isArray(body?.warnings) ? body.warnings : [],
   };

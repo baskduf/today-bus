@@ -8,6 +8,11 @@ import {
   type TagoRouteStop,
   type TagoStop,
 } from "@/lib/tago/client";
+import {
+  getGumiBisScheduleTypeForDate,
+  getGumiBisTimetable,
+  type GumiBisScheduleType,
+} from "@/lib/gumi-bis/client";
 import { tagoDemoIdentifiers } from "@/lib/transit/demo-route";
 
 export { tagoDemoIdentifiers } from "@/lib/transit/demo-route";
@@ -41,6 +46,7 @@ export type TagoDemoHealth = {
   fallbackRequired: boolean;
   identifiers: typeof tagoDemoIdentifiers;
   keyConfigured: boolean;
+  mockFallbackRequired: boolean;
   ok: boolean;
   routeLookup: TagoHealthCheck & {
     route?: TagoRoute;
@@ -52,6 +58,13 @@ export type TagoDemoHealth = {
     originOrder?: number;
     originStop?: TagoRouteStop;
     routeStopCount?: number;
+  };
+  timetableLookup: TagoHealthCheck & {
+    departureCount: number;
+    provider: "gumi_bis";
+    routeId: string;
+    routeNo: string;
+    scheduleType: GumiBisScheduleType;
   };
 };
 
@@ -137,6 +150,16 @@ export async function getTagoDemoHealth(): Promise<TagoDemoHealth> {
   let arrivalLookup: TagoDemoHealth["arrivalLookup"] = {
     ...createSkippedCheck(skippedMessage),
     arrivalCount: 0,
+  };
+  const scheduleType = getGumiBisScheduleTypeForDate(new Date());
+  let timetableLookup: TagoDemoHealth["timetableLookup"] = {
+    departureCount: 0,
+    message: "Gumi BIS timetable lookup has not run",
+    ok: false,
+    provider: "gumi_bis",
+    routeId: tagoDemoIdentifiers.timetableRouteId,
+    routeNo: tagoDemoIdentifiers.routeNo,
+    scheduleType,
   };
 
   if (keyConfigured) {
@@ -267,6 +290,37 @@ export async function getTagoDemoHealth(): Promise<TagoDemoHealth> {
     }
   }
 
+  try {
+    const timetable = await getGumiBisTimetable(
+      tagoDemoIdentifiers.timetableRouteId,
+      scheduleType,
+    );
+
+    timetableLookup = {
+      departureCount: timetable.rows.length,
+      message:
+        timetable.rows.length > 0
+          ? "Gumi BIS timetable lookup returned departures"
+          : "Gumi BIS timetable lookup returned no departures",
+      ok: timetable.rows.length > 0,
+      provider: "gumi_bis",
+      routeId: tagoDemoIdentifiers.timetableRouteId,
+      routeNo: tagoDemoIdentifiers.routeNo,
+      scheduleType,
+    };
+  } catch (error) {
+    timetableLookup = {
+      departureCount: 0,
+      error: getSafeTagoErrorMessage(error),
+      message: "Gumi BIS timetable lookup failed",
+      ok: false,
+      provider: "gumi_bis",
+      routeId: tagoDemoIdentifiers.timetableRouteId,
+      routeNo: tagoDemoIdentifiers.routeNo,
+      scheduleType,
+    };
+  }
+
   const ok =
     keyConfigured &&
     cityLookup.ok &&
@@ -274,6 +328,7 @@ export async function getTagoDemoHealth(): Promise<TagoDemoHealth> {
     routeStopOrder.ok &&
     arrivalLookup.ok;
   const fallbackRequired = !ok || arrivalLookup.arrivalCount === 0;
+  const mockFallbackRequired = fallbackRequired && !timetableLookup.ok;
 
   return {
     arrivalCount: arrivalLookup.arrivalCount,
@@ -283,9 +338,11 @@ export async function getTagoDemoHealth(): Promise<TagoDemoHealth> {
     fallbackRequired,
     identifiers: tagoDemoIdentifiers,
     keyConfigured,
+    mockFallbackRequired,
     ok,
     routeLookup,
     routeStopOrder,
+    timetableLookup,
   };
 }
 
