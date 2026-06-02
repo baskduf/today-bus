@@ -12,6 +12,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Stack: Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4
 - Package manager: npm with `package-lock.json`
 - App source: `src/app/`
+- Shared UI components: `src/components/`
+- Design tokens: `src/lib/design/`
 - Public assets: `public/`
 
 ## Core Rules
@@ -22,6 +24,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Do not edit generated output or dependency directories: `.next/`, `node_modules/`, `next-env.d.ts`, `tsconfig.tsbuildinfo`, `out/`, or `build/`.
 - Do not edit or commit the local `harness-starter-kit/` reference clone. Treat it as read-only material.
 - Do not add another package manager lockfile such as `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`, or `bun.lockb`.
+- Do not copy mockup bundles or generated design-canvas code into app source. Use `docs/design/component-rules.md` and shared components instead.
 - Do not leave drift-prone scratch files such as `temp_*`, `*_new.*`, `*_old.*`, `*_backup.*`, `*_fix.*`, or `*.bak`.
 
 ## Commands
@@ -51,6 +54,7 @@ Inspect these before architecture, workflow, integration, or repeated-failure wo
 
 - `docs/decisions/`
 - `docs/conventions/`
+- `docs/design/`
 - `docs/domain/`
 - `docs/failures/`
 - `docs/harness/adoption-report.md`

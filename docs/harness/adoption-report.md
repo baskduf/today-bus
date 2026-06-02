@@ -21,6 +21,8 @@
 - `docs/domain/glossary.md`: created the initial domain glossary.
 - `docs/failures/README.md`: created the failure-memory location and criteria.
 - `docs/harness/adoption-report.md`: recorded this adoption report.
+- `docs/design/`: added mockup source tracking and component rules after the today-bus mockup reference was provided.
+- `src/components/` and `src/lib/design/`: added shared today-bus UI tokens, doodle icons, and sketch-style primitives.
 
 ## Existing Structures Reused
 
@@ -70,6 +72,7 @@ python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report
 - `README.md`: local setup and checks.
 - `AGENTS.md`: agent instructions and harness command routing.
 - `docs/conventions/coding.md`: current code conventions.
+- `docs/design/component-rules.md`: mockup-derived component rules.
 - `docs/decisions/`: adoption decision added.
 - Behavior or integration decisions considered: no application behavior or external integration changed, so the harness adoption decision record is sufficient.
 - Not updated: no contribution guide or CI docs exist yet.
@@ -83,7 +86,7 @@ python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report
 
 ## Drift Checks Added
 
-- Baseline doc or structure hygiene checks: local Markdown links, scratch filenames, required package scripts, npm lockfile, ignored generated/reference paths, and required App Router files.
+- Baseline doc or structure hygiene checks: local Markdown links, scratch filenames, required package scripts, npm lockfile, ignored generated/reference paths, required App Router files, and required shared design-system files.
 - Encoding or localization hygiene checks: not added. The repository has no localized source text, XML resources, PDF-derived docs, or prior mojibake evidence.
 - Target-specific architecture checks: required `src/app/layout.tsx`, `src/app/page.tsx`, `next.config.ts`, npm lockfile, and Next.js docs rule in `AGENTS.md`.
 - Not added: import boundary, unused export, and CI checks were deferred because the app currently has only the create-next-app starter surface.
@@ -113,5 +116,6 @@ python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report
 ## Notes For Future Agents
 
 - Do not blindly copy starter-kit templates into this repository.
+- Do not blindly copy today-bus mockup bundles into app source; implement through the shared tokens and components.
 - Use `AGENTS.md` as the source of truth for harness command routing and completion criteria.
 - Keep this report updated only when harness adoption choices, checks, or effectiveness tracking materially change.

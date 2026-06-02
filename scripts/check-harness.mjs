@@ -38,6 +38,7 @@ const requiredGitignoreEntries = [
   "/.next/",
   "tsconfig.tsbuildinfo",
   "/harness-starter-kit/",
+  "/today-bus.zip",
 ];
 
 const requiredPackageScripts = ["lint", "typecheck", "build", "check:harness"];
@@ -125,6 +126,30 @@ async function checkNextStructure() {
   const agents = await readFile(path.join(root, "AGENTS.md"), "utf8");
   if (!agents.includes("node_modules/next/dist/docs/")) {
     failures.push("AGENTS.md must keep the Next.js version-specific docs rule.");
+  }
+
+  if (!agents.includes("docs/design/component-rules.md")) {
+    failures.push("AGENTS.md must point UI work to docs/design/component-rules.md.");
+  }
+}
+
+function checkDesignSystem() {
+  const requiredPaths = [
+    "docs/design/component-rules.md",
+    "docs/design/mockup-source.md",
+    "src/lib/design/tokens.ts",
+    "src/components/ui/sketch-card.tsx",
+    "src/components/ui/sketch-button.tsx",
+    "src/components/ui/badge.tsx",
+    "src/components/ui/ob-header.tsx",
+    "src/components/ui/rough-svg-filters.tsx",
+    "src/components/icons/doodle-icons.tsx",
+  ];
+
+  for (const requiredPath of requiredPaths) {
+    if (!existsSync(path.join(root, requiredPath))) {
+      failures.push(`Missing shared design-system path: ${requiredPath}`);
+    }
   }
 }
 
@@ -215,6 +240,7 @@ async function main() {
   await checkPackageScripts();
   await checkGitignore();
   await checkNextStructure();
+  checkDesignSystem();
   await checkMarkdownLinks();
   await checkDriftProneFiles();
 

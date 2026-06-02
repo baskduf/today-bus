@@ -18,6 +18,7 @@
 
 - Use Tailwind CSS 4 utilities and `src/app/globals.css` theme tokens already present in the project.
 - Keep styling changes close to the component being changed unless a shared convention is being added.
+- For today-bus UI work, follow `docs/design/component-rules.md` and prefer shared components from `src/components/ui/` before introducing one-off cards, buttons, badges, or headers.
 
 ## Verification
 
