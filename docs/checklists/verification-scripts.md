@@ -40,10 +40,27 @@ If a custom check becomes part of normal work, document it in `README.md` or
 `AGENTS.md`. Include it in `check:harness` only if it is stable and safe by
 default.
 
-For this project, `npm run test:planner` is a focused non-network planner check.
+For this project, `npm run check:harness` is the normal local completion gate.
+It includes `npm run test:planner` because the planner test is deterministic,
+local, non-network, reasonably fast, and covers product behavior agents should
+verify repeatedly.
+
 Live/public-data smoke scripts such as `scripts/check-tago-backend.mjs` and
 `scripts/check-gumi-bis-offset.mjs` should stay separate unless maintainers
 decide they are stable enough for the default gate.
+
+## Gate Placement
+
+When adding a verification script or test for product behavior, decide where it
+belongs before finishing the change.
+
+Include deterministic, local, non-network, reasonably fast product-behavior
+checks in the documented normal completion gate, or record why they remain
+focused or manual.
+
+Keep live API, credential, quota, provider-uptime, visual, device, slow, watcher,
+or hardware-dependent checks outside the normal gate unless they are stable,
+safe, and expected in this repository's normal local environment.
 
 ## Result Summary
 

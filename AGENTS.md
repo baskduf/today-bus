@@ -75,6 +75,7 @@ For live external API or public-data work, use `docs/checklists/external-api-wor
 - Review `git status --short` and avoid unrelated edits.
 - Run the documented checks relevant to the change.
 - For UI or server behavior changes, verify the local app with `npm run dev` and a browser or explain why build-only validation is enough.
+- When adding deterministic, local, non-network, reasonably fast checks for product behavior, include them in the documented normal completion gate or explain why they remain focused/manual.
 - For structural behavior, workflow, mock/API boundary, data model, state, or UX changes, add/update a `docs/decisions/` record, cite the existing ADR that covers it, or explain why no decision record was needed.
 - For external API changes, report the endpoint or fixture verified, live/mock mode, redaction handling, empty-result handling, provider error envelope or text-error handling, and any focused smoke command used or intentionally skipped.
 - Keep README, AGENTS, and docs aligned when commands or conventions change.
