@@ -19,6 +19,21 @@ type PlansPageProps = {
   searchParams: Promise<TripSearchParams>;
 };
 
+const sourceBadgeMeta = {
+  gumi_bis_timetable: {
+    label: "공식 시간표",
+    tone: "mint",
+  },
+  mock: {
+    label: "mock fallback",
+    tone: "yellow",
+  },
+  tago: {
+    label: "TAGO 실시간",
+    tone: "mint",
+  },
+} as const;
+
 export default async function PlansPage({ searchParams }: PlansPageProps) {
   const params = await searchParams;
   const planResponse = await createTodayBusPlanResponseFromParams(params);
@@ -27,6 +42,7 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
   const missedPlanId = resolveMissedPlanId(params);
   const isMissedFlow = missedPlanId === recommendedPlan.id;
   const alternativePlans = planResponse.plans.filter((plan) => !plan.primary);
+  const sourceBadge = sourceBadgeMeta[planResponse.source];
 
   return (
     <main className="min-h-screen bg-[var(--ob-bg)] px-4 py-6 text-[var(--ob-text)] sm:px-6">
@@ -40,9 +56,7 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
             <IconArrow size={20} stroke={obColors.text} />
             다시 검색
           </Link>
-          <Badge tone={planResponse.source === "tago" ? "mint" : "yellow"}>
-            {planResponse.source === "tago" ? "TAGO 실시간" : "mock fallback"}
-          </Badge>
+          <Badge tone={sourceBadge.tone}>{sourceBadge.label}</Badge>
         </header>
 
         <section className="flex flex-col gap-3 pt-2">
@@ -91,7 +105,7 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
                   다음은 {recoveryPlan.boardingTime}에 타는 플랜이에요
                 </h2>
                 <p className="mt-1 text-[17px] font-bold text-[var(--ob-text)]">
-                  {recoveryPlan.arrivalTime} 도착 · 도착 희망보다 22분 늦어요
+                  {recoveryPlan.arrivalTime} 도착 · {recoveryPlan.statusNote}
                 </p>
               </div>
             </div>
