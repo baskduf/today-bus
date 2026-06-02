@@ -176,8 +176,9 @@ useful than mock data but still not stop-level real-time prediction.
 
 ## Backend Shape
 
-The frontend should not consume TAGO responses directly. Today-Bus should expose
-its own planning endpoint and translate TAGO data into departure-decision plans.
+The frontend should not consume TAGO responses directly. The app should expose
+its own planning endpoint and translate TAGO data into Gumi Station train
+departure-decision plans.
 
 Planner endpoint:
 
@@ -195,9 +196,8 @@ Request shape:
   "originLat": "36.1001",
   "originLng": "128.4301",
   "originSource": "kakao_keyword",
-  "destination": "구미역",
-  "desiredArrivalTime": "2026-06-02T14:00:00+09:00",
-  "safetyBufferMinutes": 10
+  "trainDeparture": "오늘 14:10",
+  "stationBufferMinutes": 10
 }
 ```
 
@@ -206,6 +206,12 @@ The `originPlaceName`, `originAddress`, `originLat`, `originLng`, and
 Kakao Maps keyword search when `NEXT_PUBLIC_KAKAO_MAP_APP_KEY` is configured.
 They refine `itinerary.originPlace` only; the current demo still uses the fixed
 boarding stop `진평중학교입구건너`.
+
+The destination is fixed to `구미역`. `trainDeparture` is the preferred time
+input. The planner derives the internal station-arrival deadline as
+`trainDeparture - stationBufferMinutes`. Existing callers may still send
+`arrival` or `desiredArrivalTime`; those are treated as the already-derived Gumi
+Station arrival deadline.
 
 Response shape should stay close to `src/lib/today-bus/mock-plans.ts` so the
 current UI can switch from mock data to backend data with minimal churn.
@@ -216,6 +222,12 @@ structured fallback:
 ```json
 {
   "source": "mock",
+  "train": {
+    "departureTime": "오늘 14:10",
+    "destinationStation": "구미역",
+    "stationArrivalDeadline": "오늘 14:00",
+    "stationBufferMinutes": 10
+  },
   "itinerary": {
     "originPlace": {
       "label": "진평동"
@@ -257,10 +269,11 @@ structured fallback:
 
 Fallback reasons:
 
-- `unsupported_route`: the requested origin/destination is outside the current
-  진평동 to 구미역 demo route.
-- `future_planning_not_supported`: the requested arrival value is not a
-  supported same-day `오늘 HH:mm` value.
+- `unsupported_route`: reserved for future broader route support. The current UI
+  does not expose arbitrary destinations because the destination is fixed to
+  `구미역`.
+- `future_planning_not_supported`: the requested train departure or derived
+  station-arrival deadline is not a supported same-day `오늘 HH:mm` value.
 - `no_arrival`: TAGO lookup succeeded, but the route-specific origin-stop
   arrival list is empty and no usable timetable plan was available.
 - `tago_error`: the public data API call failed or returned an error response.

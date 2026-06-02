@@ -5,8 +5,9 @@
 
 ## Context
 
-Today-Bus asks for human place inputs such as `진평동` and `구미역`, but the
-actual transit plan depends on specific bus stops and route direction.
+Today-Bus originally asked for human place inputs such as `진평동` and
+`구미역`, but the actual transit plan depends on specific bus stops and route
+direction.
 
 The current demo route uses:
 
@@ -35,9 +36,9 @@ objects:
 - `destinationPlace`: the user's destination place and walk time from the
   alighting stop.
 
-Keep existing `origin` and `destination` request fields for compatibility, but
-planner responses now include `itinerary`. UI copy should prefer itinerary
-fields when explaining what the user should do.
+Planner responses include `itinerary`. UI copy should prefer itinerary fields
+when explaining what the user should do. Decision 0008 later fixes the user
+destination to `구미역` and removes destination entry from the home screen.
 
 The home search form may populate the origin place through Kakao Maps keyword
 search when `NEXT_PUBLIC_KAKAO_MAP_APP_KEY` is configured. Those selected place

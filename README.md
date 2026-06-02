@@ -1,4 +1,8 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 구미역 기차 언제 타지?
+
+Gumi Station train departure helper built with Next.js App Router. Users enter a
+train departure time and starting place; the app keeps Gumi Station fixed as the
+destination and recommends when to leave and which demo bus plan to follow.
 
 ## Getting Started
 

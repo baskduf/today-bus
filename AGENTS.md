@@ -4,11 +4,12 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-# today-bus Agent Instructions
+# 구미역 기차 언제 타지? Agent Instructions
 
 ## Project Overview
 
-- Project: `today-bus`
+- Product: `구미역 기차 언제 타지?`
+- Repository/package identifier: `today-bus`
 - Stack: Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4
 - Package manager: npm with `package-lock.json`
 - App source: `src/app/`
