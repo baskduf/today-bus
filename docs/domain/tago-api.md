@@ -135,12 +135,27 @@ Confirmed demo identifiers:
   `cityCode=37050`, `nodeId=GMB780`, `routeId=GMB18020` can return no upcoming
   arrivals depending on current operation state.
 
+## Response Handling Notes
+
+TAGO endpoints are requested with `_type=json`, but the backend must still treat
+the response format defensively:
+
+- Normal successful responses can contain `body.items` as `""` when no rows are
+  available.
+- `body.items.item` can be absent, a single object, or an array.
+- Public data portal service errors can be returned as XML under
+  `OpenAPI_ServiceResponse/cmmMsgHeader` even when the caller requested JSON.
+- The backend normalizes these cases in `src/lib/tago/client.ts` before the
+  transit provider sees the data.
+- Error messages, API responses, scripts, and docs must never include the TAGO
+  service key or a full `serviceKey=...` query string.
+
 ## Backend Shape
 
 The frontend should not consume TAGO responses directly. Today-Bus should expose
 its own planning endpoint and translate TAGO data into departure-decision plans.
 
-Suggested first endpoint:
+Planner endpoint:
 
 ```http
 POST /api/plans
@@ -159,6 +174,50 @@ Request shape:
 
 Response shape should stay close to `src/lib/today-bus/mock-plans.ts` so the
 current UI can switch from mock data to backend data with minimal churn.
+The response keeps `warnings: string[]` for the current UI and may also include
+a structured fallback:
+
+```json
+{
+  "source": "mock",
+  "fallback": {
+    "reason": "no_arrival",
+    "message": "TAGO 실시간 도착정보에 현재 180번 도착예정이 없어 mock 플랜으로 대체했습니다."
+  },
+  "warnings": [
+    "TAGO 실시간 도착정보에 현재 180번 도착예정이 없어 mock 플랜으로 대체했습니다."
+  ]
+}
+```
+
+Fallback reasons:
+
+- `unsupported_route`: the requested origin/destination is outside the current
+  진평동 to 구미역 demo route.
+- `future_planning_not_supported`: the requested arrival value is not a
+  supported same-day `오늘 HH:mm` value.
+- `no_arrival`: TAGO lookup succeeded, but the route-specific origin-stop
+  arrival list is empty.
+- `tago_error`: the public data API call failed or returned an error response.
+
+Operational health endpoint:
+
+```http
+GET /api/tago/health
+```
+
+The health response is non-secret and reports:
+
+- whether `TAGO_SERVICE_KEY` is configured;
+- whether Gumi city lookup succeeded;
+- whether route `180` lookup found `GMB18020`;
+- whether route stop order matches `GMB780` order `5` before `GMB79` order `29`;
+- whether arrival lookup completed;
+- current `arrivalCount`;
+- whether planner fallback is required.
+
+An arrival count of `0` is a handled state: the arrival lookup can still be
+`ok: true`, while `fallbackRequired: true`.
 
 ## First Spike Order
 
@@ -171,6 +230,8 @@ current UI can switch from mock data to backend data with minimal churn.
 7. Confirm whether route-specific arrival predictions are currently available.
 8. Decide whether the initial backend can support only "leave soon" decisions or
    also future arrival-time planning.
+9. With the app running, run `node scripts/check-tago-backend.mjs` to verify
+   `/api/tago/health` and `POST /api/plans` without printing the service key.
 
 ## Known Gap
 

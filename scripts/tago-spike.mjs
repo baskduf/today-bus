@@ -10,6 +10,118 @@ if (!serviceKey) {
   process.exit(1);
 }
 
+function decodeXmlText(value) {
+  return value
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&")
+    .trim();
+}
+
+function coerceXmlValue(value) {
+  const decoded = decodeXmlText(value);
+  return /^-?\d+(?:\.\d+)?$/.test(decoded) ? Number(decoded) : decoded;
+}
+
+function extractXmlTagText(xml, tag) {
+  const match = new RegExp(
+    `<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`,
+    "i",
+  ).exec(xml);
+
+  return match ? decodeXmlText(match[1]) : undefined;
+}
+
+function parseXmlItem(block) {
+  const item = {};
+
+  for (const match of block.matchAll(
+    /<([A-Za-z][\w:.-]*)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/g,
+  )) {
+    const tag = match[1].includes(":") ? match[1].split(":").pop() : match[1];
+    const value = match[2];
+
+    if (!tag || value.includes("<")) continue;
+    item[tag] = coerceXmlValue(value);
+  }
+
+  return item;
+}
+
+function parseXmlPayload(xml) {
+  const errMsg = extractXmlTagText(xml, "errMsg");
+  const returnAuthMsg = extractXmlTagText(xml, "returnAuthMsg");
+  const returnReasonCode = extractXmlTagText(xml, "returnReasonCode");
+
+  if (errMsg || returnAuthMsg || returnReasonCode) {
+    return {
+      OpenAPI_ServiceResponse: {
+        cmmMsgHeader: { errMsg, returnAuthMsg, returnReasonCode },
+      },
+    };
+  }
+
+  const items = [...xml.matchAll(/<item(?:\s[^>]*)?>([\s\S]*?)<\/item>/gi)].map(
+    (match) => parseXmlItem(match[1]),
+  );
+
+  return {
+    response: {
+      body: {
+        items: items.length > 0 ? { item: items } : "",
+        totalCount: coerceXmlValue(extractXmlTagText(xml, "totalCount") ?? ""),
+      },
+      header: {
+        resultCode: extractXmlTagText(xml, "resultCode"),
+        resultMsg: extractXmlTagText(xml, "resultMsg"),
+      },
+    },
+  };
+}
+
+function parsePayload(text, contentType) {
+  const trimmed = text.trim();
+  const normalizedContentType = contentType.toLowerCase();
+
+  if (!trimmed) return {};
+
+  if (normalizedContentType.includes("json") || /^[{[]/.test(trimmed)) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      if (!trimmed.startsWith("<")) {
+        throw new Error("TAGO returned invalid JSON");
+      }
+    }
+  }
+
+  if (trimmed.startsWith("<")) return parseXmlPayload(trimmed);
+  throw new Error("TAGO returned an unsupported response format");
+}
+
+function normalizeItems(items) {
+  if (!items) return [];
+  if (Array.isArray(items)) return items;
+  if (typeof items !== "object") return [];
+
+  const item = "item" in items ? items.item : items;
+  if (!item) return [];
+  return Array.isArray(item) ? item : [item];
+}
+
+function getPortalError(payload) {
+  const header = payload.OpenAPI_ServiceResponse?.cmmMsgHeader;
+  if (!header) return undefined;
+
+  return {
+    code: header.returnReasonCode,
+    message: [header.errMsg, header.returnAuthMsg].filter(Boolean).join(": "),
+  };
+}
+
 async function callTago(baseUrl, path, params = {}) {
   const url = new URL(`${baseUrl}${path}`);
   url.searchParams.set("serviceKey", serviceKey);
@@ -24,17 +136,32 @@ async function callTago(baseUrl, path, params = {}) {
   }
 
   const response = await fetch(url);
-  const payload = await response.json();
+  const payload = parsePayload(
+    await response.text(),
+    response.headers.get("content-type") ?? "",
+  );
+  const portalError = getPortalError(payload);
   const header = payload.response?.header;
   const body = payload.response?.body;
-  const item = body?.items?.item;
+
+  if (portalError) {
+    throw new Error(`${portalError.code ?? "portal"}: ${portalError.message}`);
+  }
+
+  if (!payload.response) {
+    throw new Error("TAGO response was missing the response wrapper");
+  }
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
 
   if (header?.resultCode && header.resultCode !== "00") {
     throw new Error(`${header.resultCode}: ${header.resultMsg}`);
   }
 
   return {
-    items: !item ? [] : Array.isArray(item) ? item : [item],
+    items: normalizeItems(body?.items),
     totalCount: body?.totalCount ?? 0,
   };
 }

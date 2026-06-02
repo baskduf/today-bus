@@ -19,15 +19,20 @@ arrivals for the target route at the current time.
 Add a backend boundary inside the Next.js App Router app:
 
 - `src/lib/tago/client.ts` owns low-level TAGO REST calls and response
-  normalization.
-- `src/lib/transit/tago-provider.ts` owns the Today-Bus demo route identifiers
-  and TAGO snapshot lookup.
+  normalization, including JSON/XML public data error handling and service-key
+  redaction.
+- `src/lib/transit/demo-route.ts` owns the Today-Bus demo route identifiers.
+- `src/lib/transit/tago-provider.ts` owns TAGO snapshot lookup and health
+  probes for the demo route.
 - `src/lib/today-bus/planner.ts` translates transit snapshots into Today-Bus
-  plan responses and falls back to mock plans when live data is unavailable.
+  plan responses and falls back to mock plans with a structured `fallback`
+  reason when live data is unavailable.
 - `src/app/api/plans/route.ts` exposes the internal plan response as
   `POST /api/plans`.
 - `src/app/api/tago/health/route.ts` exposes a non-secret health check for the
-  TAGO demo route.
+  TAGO demo route, including key configuration, city lookup, route lookup,
+  route stop order, arrival lookup, current arrival count, and whether fallback
+  is required.
 
 The existing `/plans` and `/plans/recommended` pages use the planner response
 instead of importing static mock plans directly. Mock data remains as a fallback
@@ -39,6 +44,10 @@ until route-specific live arrival data is consistently available.
 - Local development can verify real TAGO connectivity without removing the MVP
   mock flow.
 - Empty arrival responses become a handled state rather than a runtime failure.
+- The UI can continue rendering `warnings` while newer callers migrate to the
+  structured `fallback` object.
+- Operational debugging can distinguish "TAGO failed" from "TAGO succeeded but
+  there are currently no route-specific arrivals."
 - Future work can replace the demo-only provider with broader place search,
   timetable/headway data, and route planning without changing the API contract
   first.
