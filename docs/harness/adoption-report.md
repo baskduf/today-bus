@@ -20,6 +20,7 @@
 - `docs/decisions/0001-adopt-prompt-first-harness.md`: recorded this adoption decision.
 - `docs/domain/glossary.md`: created the initial domain glossary.
 - `docs/failures/README.md`: created the failure-memory location and criteria.
+- `docs/checklists/`: added decision/failure memory, external API, and verification script checklists after harness update.
 - `docs/harness/adoption-report.md`: recorded this adoption report.
 - `docs/design/`: added mockup source tracking and component rules after the today-bus mockup reference was provided.
 - `src/components/` and `src/lib/design/`: added shared today-bus UI tokens, doodle icons, and sketch-style primitives.
@@ -55,6 +56,16 @@ python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report
 - Verification performed before adoption: local page rendered with the default heading.
 - Not applicable: no database, seed data, emulator, device, or external fixture exists yet.
 
+## External API Verification
+
+- Required: yes when work touches TAGO, Gumi BIS, planner fallback behavior, or related fixtures; not required for harness-only documentation updates.
+- Boundary: ADR 0005 covers the TAGO-backed planner boundary, and ADR 0006 covers the Gumi BIS timetable fallback boundary.
+- Live/mock mode: `npm run test:planner` covers non-network planner branches. `scripts/check-tago-backend.mjs` and `scripts/check-gumi-bis-offset.mjs` are focused live/public-data diagnostics and stay outside `check:harness`.
+- Secret handling and redaction checked: TAGO service-key handling and request redaction belong in the server-only TAGO client boundary. Reports and failure notes must not print service-key values.
+- Empty or zero-result behavior: TAGO zero-arrival and Gumi BIS fallback behavior are documented in ADR 0005 and ADR 0006 and covered by planner branch checks.
+- Provider error handling: TAGO JSON/XML provider envelopes and Gumi BIS transport/runtime quirks are handled in the integration boundary; known Node TLS behavior is recorded in Failure 0003. The external API dogfood note records the remaining provider text-error gap for invalid TAGO credentials.
+- Focused smoke command or fixture: use `npm run test:planner` for deterministic branch checks; run live diagnostics only when the task requires provider/runtime verification.
+
 ## Feature Scenario Test Note
 
 - Broad feature work: no. This adoption changes docs, scripts, and local checks only.
@@ -72,6 +83,7 @@ python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report
 - `README.md`: local setup and checks.
 - `AGENTS.md`: agent instructions and harness command routing.
 - `docs/conventions/coding.md`: current code conventions.
+- `docs/checklists/`: decision/failure memory, external API, and verification script guidance.
 - `docs/design/component-rules.md`: mockup-derived component rules.
 - `docs/decisions/`: adoption decision added.
 - Behavior or integration decisions considered: no application behavior or external integration changed, so the harness adoption decision record is sufficient.
@@ -81,8 +93,8 @@ python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report
 
 - Profile reviewed: `templates/profiles/nextjs/README.md` and TypeScript profile notes from the starter kit.
 - Snippets adopted: `typecheck`, `check:harness`, Next.js generated-file warnings, and App Router completion guidance.
-- Snippets adapted: Python drift scripts were adapted into one dependency-free Node script to preserve this repository's npm-centered workflow.
-- Snippets skipped or deferred: CI wiring, pre-commit hooks, copied profile directories, unused-export tooling, and package/dependency boundary tools were skipped until the project has enough architecture to justify them.
+- Snippets adapted: Python drift scripts were adapted into one dependency-free Node script to preserve this repository's npm-centered workflow. External API and verification guidance was adapted into local `docs/checklists/` files.
+- Snippets skipped or deferred: CI wiring, pre-commit hooks, copied profile directories, unused-export tooling, package/dependency boundary tools, and default live API smoke checks were skipped until the project has enough architecture and environment stability to justify them.
 
 ## Drift Checks Added
 
@@ -117,5 +129,6 @@ python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report
 
 - Do not blindly copy starter-kit templates into this repository.
 - Do not blindly copy today-bus mockup bundles into app source; implement through the shared tokens and components.
+- Use `docs/checklists/` before external API, verification script, decision-memory, or failure-memory work.
 - Use `AGENTS.md` as the source of truth for harness command routing and completion criteria.
 - Keep this report updated only when harness adoption choices, checks, or effectiveness tracking materially change.
