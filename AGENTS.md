@@ -68,5 +68,6 @@ For structural product or workflow changes, mock/API boundary choices, major dat
 - Review `git status --short` and avoid unrelated edits.
 - Run the documented checks relevant to the change.
 - For UI or server behavior changes, verify the local app with `npm run dev` and a browser or explain why build-only validation is enough.
+- For structural behavior, workflow, mock/API boundary, data model, state, or UX changes, add/update a `docs/decisions/` record, cite the existing ADR that covers it, or explain why no decision record was needed.
 - Keep README, AGENTS, and docs aligned when commands or conventions change.
 - Summarize changed files, checks run, assumptions, remaining risks, and any manual follow-up.
