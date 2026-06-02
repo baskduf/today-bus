@@ -9,13 +9,10 @@ import { StatusDecisionGuide } from "@/components/today-bus/status-decision-guid
 import { Badge } from "@/components/ui/badge";
 import { SketchCard } from "@/components/ui/sketch-card";
 import {
-  busPlans,
-  recoveryPlan,
-  recommendedPlan,
   resolveMissedPlanId,
-  resolveTripInput,
   type TripSearchParams,
 } from "@/lib/today-bus/mock-plans";
+import { createTodayBusPlanResponseFromParams } from "@/lib/today-bus/planner";
 import { obColors } from "@/lib/design/tokens";
 
 type PlansPageProps = {
@@ -24,10 +21,12 @@ type PlansPageProps = {
 
 export default async function PlansPage({ searchParams }: PlansPageProps) {
   const params = await searchParams;
-  const tripInput = resolveTripInput(params);
+  const planResponse = await createTodayBusPlanResponseFromParams(params);
+  const tripInput = planResponse.effectiveInput;
+  const { recoveryPlan, recommendedPlan } = planResponse;
   const missedPlanId = resolveMissedPlanId(params);
   const isMissedFlow = missedPlanId === recommendedPlan.id;
-  const alternativePlans = busPlans.filter((plan) => !plan.primary);
+  const alternativePlans = planResponse.plans.filter((plan) => !plan.primary);
 
   return (
     <main className="min-h-screen bg-[var(--ob-bg)] px-4 py-6 text-[var(--ob-text)] sm:px-6">
@@ -41,7 +40,9 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
             <IconArrow size={20} stroke={obColors.text} />
             다시 검색
           </Link>
-          <Badge tone="mint">mock data</Badge>
+          <Badge tone={planResponse.source === "tago" ? "mint" : "yellow"}>
+            {planResponse.source === "tago" ? "TAGO 실시간" : "mock fallback"}
+          </Badge>
         </header>
 
         <section className="flex flex-col gap-3 pt-2">
@@ -60,6 +61,21 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
             안전 여유 {tripInput.buffer}분 기준으로 추천 플랜을 먼저 보여드립니다.
           </p>
         </section>
+
+        {planResponse.warnings.length > 0 ? (
+          <SketchCard accent={obColors.yellow} bg="#FFF9E8" pad={16} radius="r2">
+            <div className="flex flex-col gap-1">
+              {planResponse.warnings.map((warning) => (
+                <p
+                  className="text-[16px] font-bold text-[var(--ob-text)]"
+                  key={warning}
+                >
+                  {warning}
+                </p>
+              ))}
+            </div>
+          </SketchCard>
+        ) : null}
 
         {isMissedFlow ? (
           <SketchCard accent={obColors.coral} bg="#FFF7F2" pad={18} radius="r2">

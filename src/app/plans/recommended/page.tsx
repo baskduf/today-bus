@@ -6,11 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { SketchCard } from "@/components/ui/sketch-card";
 import {
   createTripHref,
-  recoveryPlan,
-  recommendedPlan,
-  resolveTripInput,
+  planStatusMeta,
   type TripSearchParams,
 } from "@/lib/today-bus/mock-plans";
+import { createTodayBusPlanResponseFromParams } from "@/lib/today-bus/planner";
 import { IconArrow, IconBus, IconWarn } from "@/components/icons/doodle-icons";
 import { obColors } from "@/lib/design/tokens";
 
@@ -21,11 +20,28 @@ type RecommendedPageProps = {
 export default async function RecommendedPlanPage({
   searchParams,
 }: RecommendedPageProps) {
-  const tripInput = resolveTripInput(await searchParams);
+  const planResponse = await createTodayBusPlanResponseFromParams(
+    await searchParams,
+  );
+  const tripInput = planResponse.effectiveInput;
+  const { recoveryPlan, recommendedPlan } = planResponse;
   const plansHref = createTripHref("/plans", tripInput);
   const missedHref = `${createTripHref("/plans", tripInput, {
     missed: recommendedPlan.id,
   })}#${recoveryPlan.id}`;
+  const statusMeta = planStatusMeta[recommendedPlan.status];
+  const summaryClassName =
+    recommendedPlan.status === "late"
+      ? "text-[25px] font-black text-[var(--ob-coral-deep)]"
+      : recommendedPlan.status === "safe"
+        ? "text-[25px] font-black text-[var(--ob-green-deep)]"
+        : "text-[25px] font-black text-[var(--ob-text2)]";
+  const riskTitle = recommendedPlan.missedDelayMinutes
+    ? recommendedPlan.statusNote
+    : recommendedPlan.statusLine;
+  const riskBody = recommendedPlan.missedDelayMinutes
+    ? recommendedPlan.statusLine
+    : recommendedPlan.statusNote;
 
   return (
     <main className="min-h-screen bg-[var(--ob-bg)] px-4 py-6 text-[var(--ob-text)] sm:px-6">
@@ -39,7 +55,7 @@ export default async function RecommendedPlanPage({
             <IconArrow size={20} stroke={obColors.text} />
             다른 플랜
           </Link>
-          <Badge tone="yellow">주의</Badge>
+          <Badge tone={statusMeta.tone}>{statusMeta.badge}</Badge>
         </header>
 
         <section className="flex flex-col gap-2 pt-3">
@@ -49,9 +65,7 @@ export default async function RecommendedPlanPage({
           <h1 className="text-[43px] font-black leading-[1.04] text-[var(--ob-text)] sm:text-[58px]">
             {recommendedPlan.departureTime}에 출발하면 됩니다
           </h1>
-          <p className="text-[25px] font-black text-[var(--ob-green-deep)]">
-            아직 18분 여유가 있어요
-          </p>
+          <p className={summaryClassName}>{recommendedPlan.summaryLine}</p>
         </section>
 
         <SketchCard accent={obColors.coral} bg="#FFF7F2" pad={18} radius="r2">
@@ -61,17 +75,33 @@ export default async function RecommendedPlanPage({
             </div>
             <div>
               <p className="text-[25px] font-black text-[var(--ob-coral-deep)]">
-                놓치면 22분 늦어요
+                {riskTitle}
               </p>
               <p className="mt-1 text-[19px] font-black text-[var(--ob-text)]">
-                이 버스는 타는 게 안전해요
+                {riskBody}
               </p>
               <p className="mt-2 text-[16px] font-bold text-[var(--ob-text2)]">
-                다음 대안은 13:47 탑승이라 도착 희망보다 늦습니다.
+                다음 대안은 {recoveryPlan.boardingTime} 탑승,{" "}
+                {recoveryPlan.arrivalTime} 도착입니다.
               </p>
             </div>
           </div>
         </SketchCard>
+
+        {planResponse.warnings.length > 0 ? (
+          <SketchCard accent={obColors.yellow} bg="#FFF9E8" pad={16} radius="r2">
+            <div className="flex flex-col gap-1">
+              {planResponse.warnings.map((warning) => (
+                <p
+                  className="text-[16px] font-bold text-[var(--ob-text)]"
+                  key={warning}
+                >
+                  {warning}
+                </p>
+              ))}
+            </div>
+          </SketchCard>
+        ) : null}
 
         <section className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
