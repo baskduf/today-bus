@@ -4,12 +4,15 @@ import {
   type TodayBusPlanResponse,
 } from "@/lib/today-bus/planner";
 import { getSafeTagoErrorMessage } from "@/lib/tago/client";
-import { tripDefaults, type TripInput } from "@/lib/today-bus/mock-plans";
+import {
+  createStationArrivalTime,
+  tripDefaults,
+  type TripInput,
+} from "@/lib/today-bus/mock-plans";
 
 type PlanRequestBody = {
   arrival?: string;
   desiredArrivalTime?: string;
-  destination?: string;
   origin?: string;
   originAddress?: string;
   originLat?: number | string;
@@ -17,16 +20,31 @@ type PlanRequestBody = {
   originPlaceName?: string;
   originSource?: TripInput["originSource"];
   safetyBufferMinutes?: number;
+  stationBufferMinutes?: number;
+  trainDeparture?: string;
+  trainDepartureTime?: string;
 };
 
 function normalizeBody(body: PlanRequestBody): TripInput {
-  return {
-    arrival: body.arrival ?? body.desiredArrivalTime ?? tripDefaults.arrival,
-    buffer:
-      typeof body.safetyBufferMinutes === "number"
+  const explicitTrainDeparture = body.trainDeparture ?? body.trainDepartureTime;
+  const trainDeparture =
+    explicitTrainDeparture ?? tripDefaults.trainDeparture;
+  const buffer =
+    typeof body.stationBufferMinutes === "number"
+      ? String(body.stationBufferMinutes)
+      : typeof body.safetyBufferMinutes === "number"
         ? String(body.safetyBufferMinutes)
-        : tripDefaults.buffer,
-    destination: body.destination ?? tripDefaults.destination,
+        : tripDefaults.buffer;
+
+  return {
+    arrival:
+      (explicitTrainDeparture
+        ? createStationArrivalTime(explicitTrainDeparture, buffer)
+        : undefined) ??
+      body.arrival ??
+      body.desiredArrivalTime ??
+      tripDefaults.arrival,
+    buffer,
     origin: body.origin ?? tripDefaults.origin,
     originAddress: body.originAddress,
     originLat:
@@ -35,6 +53,7 @@ function normalizeBody(body: PlanRequestBody): TripInput {
       body.originLng === undefined ? undefined : String(body.originLng),
     originPlaceName: body.originPlaceName,
     originSource: body.originSource,
+    trainDeparture,
   };
 }
 

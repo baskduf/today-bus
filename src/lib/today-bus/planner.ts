@@ -67,6 +67,12 @@ export type TodayBusPlanResponse = {
     routeNo: string;
     scheduleType: GumiBisScheduleType;
   };
+  train: {
+    departureTime: string;
+    destinationStation: "구미역";
+    stationArrivalDeadline: string;
+    stationBufferMinutes: number;
+  };
   warnings: string[];
 };
 
@@ -78,10 +84,6 @@ const destinationWalkMinutes =
   todayBusDemoItinerary.destinationPlace.walkMinutesFromAlightingStop;
 const kstOffsetHours = 9;
 const seoulTimeZone = "Asia/Seoul";
-
-function isDemoInput(input: TripInput) {
-  return input.destination === tripDefaults.destination;
-}
 
 function parseCoordinate(value: string | undefined) {
   if (!value) return undefined;
@@ -226,56 +228,67 @@ function getSlackMinutes(arrivalTime: Date, desiredArrivalTime: Date) {
   );
 }
 
-function parseSafetyBufferMinutes(input: TripInput) {
+function parseStationBufferMinutes(input: TripInput) {
   const buffer = Number(input.buffer);
   return Number.isFinite(buffer) && buffer > 0
     ? buffer
     : Number(tripDefaults.buffer);
 }
 
-function classifyPlan(slackMinutes: number, safetyBufferMinutes: number) {
+function createTrainMeta(input: TripInput): TodayBusPlanResponse["train"] {
+  return {
+    departureTime: input.trainDeparture,
+    destinationStation: "구미역",
+    stationArrivalDeadline: input.arrival,
+    stationBufferMinutes: parseStationBufferMinutes(input),
+  };
+}
+
+function classifyPlan(slackMinutes: number, stationBufferMinutes: number) {
   if (slackMinutes < 0) return "late" as const;
   if (slackMinutes > 30) return "too_early" as const;
-  if (slackMinutes >= safetyBufferMinutes) return "safe" as const;
+  if (slackMinutes >= stationBufferMinutes) return "safe" as const;
   return "caution" as const;
 }
 
 function formatSlackSummary(slackMinutes: number) {
   if (slackMinutes < 0) return `${Math.abs(slackMinutes)}분 늦음`;
   if (slackMinutes > 30) return `${slackMinutes}분 일찍 도착`;
-  return `여유 ${slackMinutes}분`;
+  return `역 도착 기준 추가 여유 ${slackMinutes}분`;
 }
 
 function createLiveStatusLine(
   status: BusPlan["status"],
   slackMinutes: number,
-  safetyBufferMinutes: number,
+  stationBufferMinutes: number,
 ) {
   if (status === "late") {
-    return `도착 희망보다 ${Math.abs(slackMinutes)}분 늦어요`;
+    return `기차 준비 기준보다 ${Math.abs(slackMinutes)}분 늦어요`;
   }
 
   if (status === "too_early") {
-    return `너무 일찍 도착: ${slackMinutes}분 여유`;
+    return `구미역에 너무 일찍 도착: 추가 여유 ${slackMinutes}분`;
   }
 
   if (status === "safe") {
-    return `안전 여유 ${safetyBufferMinutes}분 이상 확보`;
+    return `역 도착 기준에 추가 여유 ${stationBufferMinutes}분 이상 확보`;
   }
 
-  return `여유가 안전 기준 ${safetyBufferMinutes}분보다 적어요`;
+  return `역 도착 기준까지 추가 여유가 ${stationBufferMinutes}분보다 적어요`;
 }
 
 function createArrivalDetail(
   input: TripInput,
   slackMinutes: number,
-  safetyBufferMinutes: number,
+  stationBufferMinutes: number,
 ) {
   if (slackMinutes < 0) {
-    return `${input.arrival}보다 ${Math.abs(slackMinutes)}분 늦어요`;
+    return `${input.trainDeparture} 기차 준비 기준보다 ${Math.abs(
+      slackMinutes,
+    )}분 늦어요`;
   }
 
-  return `${input.arrival} 기준 여유 ${slackMinutes}분 · 안전 기준 ${safetyBufferMinutes}분`;
+  return `${input.trainDeparture} 기차 · 출발 ${stationBufferMinutes}분 전 구미역 도착 기준 · 추가 여유 ${slackMinutes}분`;
 }
 
 export function getEstimatedOriginOffsetMinutes() {
@@ -296,21 +309,21 @@ export function getEstimatedOriginOffsetMinutes() {
 function createStatusNote(
   status: BusPlan["status"],
   slackMinutes: number,
-  safetyBufferMinutes: number,
+  stationBufferMinutes: number,
 ) {
   if (status === "late") {
-    return `도착 희망보다 ${Math.abs(slackMinutes)}분 늦어요`;
+    return `기차 준비 기준보다 ${Math.abs(slackMinutes)}분 늦어요`;
   }
 
   if (status === "too_early") {
-    return `도착 후 ${slackMinutes}분 정도 기다려야 해요`;
+    return `구미역에서 ${slackMinutes}분 정도 기다려야 해요`;
   }
 
   if (status === "safe") {
-    return `안전 여유 ${slackMinutes}분이에요`;
+    return `기차까지 추가 여유 ${slackMinutes}분이에요`;
   }
 
-  return `안전 기준보다 ${safetyBufferMinutes - slackMinutes}분 부족해요`;
+  return `역 도착 기준 추가 여유가 ${stationBufferMinutes - slackMinutes}분 부족해요`;
 }
 
 function createLivePlan(
@@ -338,9 +351,9 @@ function createLivePlan(
   );
   const dropOff = addMinutes(boarding, busRideMinutes);
   const destinationArrival = addMinutes(dropOff, destinationWalkMinutes);
-  const safetyBufferMinutes = parseSafetyBufferMinutes(input);
+  const stationBufferMinutes = parseStationBufferMinutes(input);
   const slackMinutes = getSlackMinutes(destinationArrival, desiredArrivalTime);
-  const status = classifyPlan(slackMinutes, safetyBufferMinutes);
+  const status = classifyPlan(slackMinutes, stationBufferMinutes);
   const missedDelayMinutes = arrivalCandidates[1]
     ? Math.ceil((arrivalCandidates[1].seconds - firstArrival.seconds) / 60)
     : undefined;
@@ -358,7 +371,7 @@ function createLivePlan(
     statusLine: createLiveStatusLine(
       status,
       slackMinutes,
-      safetyBufferMinutes,
+      stationBufferMinutes,
     ),
     statusNote: missedDelayMinutes
       ? `놓치면 ${missedDelayMinutes}분 늦어요`
@@ -393,7 +406,7 @@ function createLivePlan(
         detail: createArrivalDetail(
           input,
           slackMinutes,
-          safetyBufferMinutes,
+          stationBufferMinutes,
         ),
         kind: "arrival",
         label: `${todayBusDemoItinerary.destinationPlace.label} 도착`,
@@ -426,7 +439,7 @@ function createTimetableCandidates({
   input: TripInput;
   originOffsetMinutes: number;
 }) {
-  const safetyBufferMinutes = parseSafetyBufferMinutes(input);
+  const stationBufferMinutes = parseStationBufferMinutes(input);
   const kstDateParts = getKstDateParts(desiredArrivalTime);
 
   return entries
@@ -457,7 +470,7 @@ function createTimetableCandidates({
         entry,
         routeStartTime,
         slackMinutes,
-        status: classifyPlan(slackMinutes, safetyBufferMinutes),
+        status: classifyPlan(slackMinutes, stationBufferMinutes),
       });
 
       return candidates;
@@ -489,7 +502,7 @@ function createTimetableBusPlan({
   label: string;
   missedDelayMinutes?: number;
 }): BusPlan {
-  const safetyBufferMinutes = parseSafetyBufferMinutes(input);
+  const stationBufferMinutes = parseStationBufferMinutes(input);
 
   return {
     ...recommendedPlan,
@@ -512,7 +525,7 @@ function createTimetableBusPlan({
     statusLine: createLiveStatusLine(
       candidate.status,
       candidate.slackMinutes,
-      safetyBufferMinutes,
+      stationBufferMinutes,
     ),
     statusNote:
       missedDelayMinutes && isPrimary
@@ -520,7 +533,7 @@ function createTimetableBusPlan({
         : createStatusNote(
             candidate.status,
             candidate.slackMinutes,
-            safetyBufferMinutes,
+            stationBufferMinutes,
           ),
     summaryLine: isPrimary
       ? `대기 ${stopWaitMinutes}분 · ${formatSlackSummary(candidate.slackMinutes)}`
@@ -558,7 +571,7 @@ function createTimetableBusPlan({
         detail: createArrivalDetail(
           input,
           candidate.slackMinutes,
-          safetyBufferMinutes,
+          stationBufferMinutes,
         ),
         kind: "arrival",
         label: `${todayBusDemoItinerary.destinationPlace.label} 도착`,
@@ -643,15 +656,15 @@ function createMockResponse(
   fallback?: TodayBusFallback,
 ): TodayBusPlanResponse {
   const effectiveInput = {
-    arrival: tripDefaults.arrival,
+    arrival: requestedInput.arrival || tripDefaults.arrival,
     buffer: requestedInput.buffer,
-    destination: tripDefaults.destination,
     origin: requestedInput.origin || tripDefaults.origin,
     originAddress: requestedInput.originAddress,
     originLat: requestedInput.originLat,
     originLng: requestedInput.originLng,
     originPlaceName: requestedInput.originPlaceName,
     originSource: requestedInput.originSource,
+    trainDeparture: requestedInput.trainDeparture || tripDefaults.trainDeparture,
   } satisfies TripInput;
 
   return {
@@ -664,6 +677,7 @@ function createMockResponse(
     requestedInput,
     source: "mock",
     tago,
+    train: createTrainMeta(effectiveInput),
     warnings,
   };
 }
@@ -718,6 +732,7 @@ async function createTimetableResponse({
       routeNo: tagoDemoIdentifiers.routeNo,
       scheduleType,
     },
+    train: createTrainMeta(requestedInput),
     warnings,
   };
 }
@@ -746,21 +761,10 @@ export async function createTodayBusPlanResponseWithDependencies(
     warnings.push(createCustomOriginWarning(requestedInput));
   }
 
-  if (!isDemoInput(requestedInput)) {
-    const fallback = {
-      message:
-        "현재 TAGO 연동은 진평동에서 구미역까지의 데모 구간만 지원합니다. 데모 구간 기준 플랜을 보여줍니다.",
-      reason: "unsupported_route",
-    } satisfies TodayBusFallback;
-
-    warnings.push(fallback.message);
-    return createMockResponse(requestedInput, warnings, undefined, fallback);
-  }
-
   if (!desiredArrivalTime) {
     const fallback = {
       message:
-        "현재 TAGO 실시간 연동은 '오늘 HH:mm' 형식의 당일 도착 희망만 해석합니다. mock 플랜을 보여줍니다.",
+        "현재는 '오늘 HH:mm' 형식의 당일 기차 출발 시간만 해석합니다. mock 플랜을 보여줍니다.",
       reason: "future_planning_not_supported",
     } satisfies TodayBusFallback;
 
@@ -804,10 +808,10 @@ export async function createTodayBusPlanResponseWithDependencies(
         "TAGO 실시간 도착정보가 없어 구미 BIS 공식 시간표와 정류장 통과 추정으로 계산했습니다.";
     } else if (livePlan.status === "too_early") {
       warnings.push(
-        "현재 TAGO 첫 도착은 희망 시각보다 너무 이른 플랜이라 구미 BIS 공식 시간표를 확인합니다.",
+        "현재 TAGO 첫 도착은 기차 시간보다 너무 이른 플랜이라 구미 BIS 공식 시간표를 확인합니다.",
       );
       timetableWarning =
-        "희망 도착 시각에 맞춰 구미 BIS 공식 시간표와 정류장 통과 추정으로 계산했습니다.";
+        "기차 출발 시간에 맞춰 구미 BIS 공식 시간표와 정류장 통과 추정으로 계산했습니다.";
     } else {
       const livePlans = [livePlan, ...busPlans.filter((plan) => !plan.primary)];
       return {
@@ -819,6 +823,7 @@ export async function createTodayBusPlanResponseWithDependencies(
         requestedInput,
         source: "tago",
         tago,
+        train: createTrainMeta(requestedInput),
         warnings,
       };
     }

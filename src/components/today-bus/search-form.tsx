@@ -13,6 +13,7 @@ import { SketchButton } from "@/components/ui/sketch-button";
 import { SketchCard } from "@/components/ui/sketch-card";
 import { obColors } from "@/lib/design/tokens";
 import {
+  createStationArrivalTime,
   createTripHref,
   tripDefaults,
   type TripInput,
@@ -142,8 +143,8 @@ export function SearchForm() {
   const [input, setInput] = useState<TripInput>({
     arrival: tripDefaults.arrival,
     buffer: tripDefaults.buffer,
-    destination: tripDefaults.destination,
     origin: tripDefaults.origin,
+    trainDeparture: tripDefaults.trainDeparture,
   });
   const [originCandidates, setOriginCandidates] = useState<
     KakaoPlaceCandidate[]
@@ -153,8 +154,19 @@ export function SearchForm() {
   >(kakaoMapAppKey ? "idle" : "unavailable");
   const [originTouched, setOriginTouched] = useState(false);
 
+  function withDerivedArrival(nextInput: TripInput): TripInput {
+    return {
+      ...nextInput,
+      arrival:
+        createStationArrivalTime(nextInput.trainDeparture, nextInput.buffer) ??
+        nextInput.arrival,
+    };
+  }
+
   function updateInput(name: keyof TripInput, value: string) {
-    setInput((current) => ({ ...current, [name]: value }));
+    setInput((current) =>
+      withDerivedArrival({ ...current, [name]: value }),
+    );
   }
 
   function updateOrigin(value: string) {
@@ -306,39 +318,41 @@ export function SearchForm() {
           </label>
           <label className="flex flex-col gap-2">
             <span className="flex items-center gap-2 text-[15px] font-bold text-[var(--ob-text2)]">
-              <IconBus size={20} stroke={obColors.ink} />
-              목적지
+              <IconClock size={20} stroke={obColors.ink} />
+              기차 출발 시간
             </span>
             <input
               className={inputClass}
-              name="destination"
+              name="trainDeparture"
               onChange={(event) =>
-                updateInput("destination", event.target.value)
+                updateInput("trainDeparture", event.target.value)
               }
-              value={input.destination}
+              value={input.trainDeparture}
             />
           </label>
         </div>
 
-        <label className="flex flex-col gap-2">
-          <span className="flex items-center gap-2 text-[15px] font-bold text-[var(--ob-text2)]">
-            <IconClock size={20} stroke={obColors.ink} />
-            도착 희망 시간
-          </span>
-          <input
-            className={inputClass}
-            name="arrival"
-            onChange={(event) => updateInput("arrival", event.target.value)}
-            value={input.arrival}
-          />
-        </label>
+        <div className="rounded-[18px] border-2 border-dashed border-[var(--ob-ink-soft)] bg-white px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2 text-[15px] font-bold text-[var(--ob-text2)]">
+              <IconBus size={20} stroke={obColors.ink} />
+              도착역
+            </span>
+            <span className="text-[21px] font-black text-[var(--ob-text)]">
+              구미역
+            </span>
+          </div>
+          <p className="mt-1 text-[14px] font-bold text-[var(--ob-text2)]">
+            {input.arrival}까지 역에 도착하는 기준입니다.
+          </p>
+        </div>
 
         <div className="flex flex-col gap-2">
           <span className="text-[15px] font-bold text-[var(--ob-text2)]">
-            안전 여유 시간
+            구미역 도착 여유
           </span>
           <div className="grid grid-cols-3 gap-2">
-            {tripDefaults.safetyBuffers.map((buffer) => {
+            {tripDefaults.stationBuffers.map((buffer) => {
               const selected = input.buffer === buffer;
 
               return (
@@ -361,28 +375,9 @@ export function SearchForm() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <span className="text-[15px] font-bold text-[var(--ob-text2)]">
-            자주 가는 목적지
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {tripDefaults.favoriteDestinations.map((destination) => (
-              <button
-                className="ob-pill ob-tap border-2 bg-white px-4 py-2 text-[16px] font-bold text-[var(--ob-text)]"
-                key={destination}
-                onClick={() => updateInput("destination", destination)}
-                style={{ borderColor: obColors.inkSoft }}
-                type="button"
-              >
-                {destination}
-              </button>
-            ))}
-          </div>
-        </div>
-
         <SketchButton big type="submit">
           <IconSpark size={25} stroke="#1d3a29" />
-          출발 타임라인 보기
+          기차 시간 맞춰 나가기
         </SketchButton>
       </form>
     </SketchCard>

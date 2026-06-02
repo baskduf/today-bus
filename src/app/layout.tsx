@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "오늘버스",
-  description: "버스 시간이 아니라 오늘 나가야 할 시간을 알려주는 서비스",
+  title: "구미역 기차 언제 타지?",
+  description: "구미역 기차 시간에 맞춰 오늘 나가야 할 시간을 알려주는 서비스",
 };
 
 export default function RootLayout({

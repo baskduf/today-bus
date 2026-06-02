@@ -36,13 +36,13 @@ export type BusPlan = {
 export type TripInput = {
   arrival: string;
   buffer: string;
-  destination: string;
   origin: string;
   originAddress?: string;
   originLat?: string;
   originLng?: string;
   originPlaceName?: string;
   originSource?: "kakao_keyword" | "manual";
+  trainDeparture: string;
 };
 
 export type TripSearchParams = {
@@ -58,10 +58,9 @@ export type PlanStatusExample = {
 export const tripDefaults = {
   arrival: "오늘 14:00",
   buffer: "10",
-  destination: "구미역",
-  favoriteDestinations: ["구미역", "터미널", "금오공대"],
   origin: "진평동",
-  safetyBuffers: ["5", "10", "15"],
+  stationBuffers: ["5", "10", "15"],
+  trainDeparture: "오늘 14:10",
 } as const;
 
 export const planStatusMeta: Record<
@@ -109,9 +108,9 @@ export const busPlans: BusPlan[] = [
     missedDelayMinutes: 22,
     primary: true,
     status: "caution",
-    statusLine: "이 버스는 타는 게 안전해요",
+    statusLine: "기차 시간에 맞출 수 있어요",
     statusNote: "놓치면 22분 늦어요",
-    summaryLine: "대기 5분 · 여유 7분",
+    summaryLine: "대기 5분 · 역 도착 기준 추가 여유 7분",
     timeline: [
       {
         detail: `${todayBusDemoItinerary.boardingStop.name} 정류장까지 도보 ${todayBusDemoItinerary.boardingStop.walkMinutesFromOrigin}분`,
@@ -138,7 +137,7 @@ export const busPlans: BusPlan[] = [
         time: "13:46",
       },
       {
-        detail: "도착 희망 시간보다 7분 여유",
+        detail: "14:10 기차 기준 추가 여유 7분",
         kind: "arrival",
         label: "구미역 도착",
         time: "13:53",
@@ -180,8 +179,8 @@ export const busPlans: BusPlan[] = [
     label: "플랜 C",
     primary: false,
     status: "late",
-    statusLine: "도착 희망보다 22분 늦음",
-    statusNote: "도착 희망보다 22분 늦어요",
+    statusLine: "기차 준비 기준보다 22분 늦음",
+    statusNote: "기차 준비 기준보다 22분 늦어요",
     summaryLine: "13:47 탑승 · 14:22 도착",
     timeline: [],
     waitMinutes: 5,
@@ -193,13 +192,13 @@ export const recoveryPlan = busPlans[2];
 
 export const statusDecisionExamples: PlanStatusExample[] = [
   {
-    detail: "도착 희망 시간보다 충분히 먼저 도착해요.",
-    message: "여유 있는 플랜이에요",
+    detail: "기차 출발 전 구미역 도착 기준보다 충분히 먼저 도착해요.",
+    message: "기차까지 여유 있는 플랜이에요",
     status: "safe",
   },
   {
     detail: "놓치면 22분 늦어요",
-    message: "이 버스는 타는 게 안전해요",
+    message: "이 버스는 꼭 타야 해요",
     status: "caution",
   },
   {
@@ -208,8 +207,8 @@ export const statusDecisionExamples: PlanStatusExample[] = [
     status: "danger",
   },
   {
-    detail: "도착 희망 시간 이후에 목적지에 도착합니다.",
-    message: "도착 희망보다 22분 늦어요",
+    detail: "기차 준비 기준보다 늦게 구미역에 도착합니다.",
+    message: "기차 기준보다 22분 늦어요",
     status: "late",
   },
   {
@@ -227,19 +226,63 @@ function parseOriginSource(value: string | undefined) {
   return value === "kakao_keyword" || value === "manual" ? value : undefined;
 }
 
+function parseTodayClock(value: string | undefined) {
+  const match = value?.match(/^오늘\s+(\d{1,2}):(\d{2})$/);
+  if (!match) return undefined;
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return undefined;
+
+  return hour * 60 + minute;
+}
+
+function formatTodayClock(totalMinutes: number) {
+  const normalized = ((totalMinutes % 1440) + 1440) % 1440;
+  const hour = Math.floor(normalized / 60);
+  const minute = normalized % 60;
+
+  return `오늘 ${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+export function createStationArrivalTime(
+  trainDeparture: string,
+  buffer: string,
+) {
+  const departureMinutes = parseTodayClock(trainDeparture);
+  const bufferMinutes = Number(buffer);
+
+  if (
+    departureMinutes === undefined ||
+    !Number.isFinite(bufferMinutes) ||
+    bufferMinutes < 0 ||
+    departureMinutes - bufferMinutes < 0
+  ) {
+    return undefined;
+  }
+
+  return formatTodayClock(departureMinutes - bufferMinutes);
+}
+
 export function resolveTripInput(params: TripSearchParams = {}): TripInput {
   const originSource = parseOriginSource(firstValue(params.originSource));
+  const trainDeparture =
+    firstValue(params.trainDeparture) ?? tripDefaults.trainDeparture;
+  const buffer = firstValue(params.buffer) ?? tripDefaults.buffer;
 
   return {
-    arrival: firstValue(params.arrival) ?? tripDefaults.arrival,
-    buffer: firstValue(params.buffer) ?? tripDefaults.buffer,
-    destination: firstValue(params.destination) ?? tripDefaults.destination,
+    arrival:
+      firstValue(params.arrival) ??
+      createStationArrivalTime(trainDeparture, buffer) ??
+      tripDefaults.arrival,
+    buffer,
     origin: firstValue(params.origin) ?? tripDefaults.origin,
     originAddress: firstValue(params.originAddress),
     originLat: firstValue(params.originLat),
     originLng: firstValue(params.originLng),
     originPlaceName: firstValue(params.originPlaceName),
     originSource,
+    trainDeparture,
   };
 }
 
@@ -254,8 +297,8 @@ export function createTripQuery(
   const params = new URLSearchParams({
     arrival: input.arrival,
     buffer: input.buffer,
-    destination: input.destination,
     origin: input.origin,
+    trainDeparture: input.trainDeparture,
     ...extra,
   });
 

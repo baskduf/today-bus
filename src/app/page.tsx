@@ -17,10 +17,10 @@ export default function Home() {
             </div>
             <div>
               <p className="text-[17px] font-black text-[var(--ob-green-deep)]">
-                오늘버스
+                구미역 기차 언제 타지?
               </p>
               <p className="text-[15px] font-bold text-[var(--ob-text2)]">
-                지방 생활형 출발 판단 도우미
+                구미역 기차 출발 판단 도우미
               </p>
             </div>
           </div>
@@ -29,7 +29,7 @@ export default function Home() {
 
         <section className="flex flex-col gap-4">
           <p className="text-[20px] font-black leading-snug text-[var(--ob-text)]">
-            버스 시간이 아니라, 오늘 나가야 할 시간을 알려드릴게요.
+            기차 시간에 맞춰, 오늘 나가야 할 시간을 알려드릴게요.
           </p>
           <div>
             <div className="mb-3 flex items-center gap-2 text-[17px] font-bold text-[var(--ob-text2)]">
@@ -37,7 +37,7 @@ export default function Home() {
               핵심 질문
             </div>
             <h1 className="text-[41px] font-black leading-[1.05] text-[var(--ob-text)] sm:text-[56px]">
-              구미역까지 몇 시에 나가야 할까요?
+              구미역 기차, 몇 시에 나가야 할까요?
             </h1>
           </div>
         </section>

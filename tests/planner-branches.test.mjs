@@ -24,8 +24,8 @@ const fixedNow = new Date("2026-06-02T06:20:00.000Z");
 const demoInput = {
   arrival: "오늘 16:00",
   buffer: "10",
-  destination: "구미역",
   origin: "진평동",
+  trainDeparture: "오늘 16:10",
 };
 const timetableRows = [
   { bttSeqno: 1, starttime: "15:05" },
@@ -97,6 +97,9 @@ test("returns a place-to-stop itinerary for the demo route", async () => {
   assert.equal(response.itinerary.alightingStop.nodeId, "GMB79");
   assert.equal(response.itinerary.alightingStop.name, "구미역(중앙시장)");
   assert.equal(response.itinerary.destinationPlace.label, "구미역");
+  assert.equal(response.train.departureTime, "오늘 16:10");
+  assert.equal(response.train.stationArrivalDeadline, "오늘 16:00");
+  assert.equal(response.train.stationBufferMinutes, 10);
 });
 
 test("carries a selected origin place while keeping the demo boarding stop", async () => {
@@ -148,7 +151,7 @@ test("uses Gumi BIS timetable when the live arrival is too early", async () => {
   });
 
   const response = await createTodayBusPlanResponseWithDependencies(
-    { ...demoInput, arrival: "오늘 18:00" },
+    { ...demoInput, arrival: "오늘 18:00", trainDeparture: "오늘 18:10" },
     dependencies,
   );
 
@@ -163,7 +166,7 @@ test("uses Gumi BIS timetable when TAGO has no live arrivals", async () => {
   });
 
   const response = await createTodayBusPlanResponseWithDependencies(
-    { ...demoInput, arrival: "오늘 18:00" },
+    { ...demoInput, arrival: "오늘 18:00", trainDeparture: "오늘 18:10" },
     dependencies,
   );
 
@@ -181,7 +184,7 @@ test("falls back to mock when Gumi BIS timetable lookup fails", async () => {
   });
 
   const response = await createTodayBusPlanResponseWithDependencies(
-    { ...demoInput, arrival: "오늘 18:00" },
+    { ...demoInput, arrival: "오늘 18:00", trainDeparture: "오늘 18:10" },
     dependencies,
   );
 

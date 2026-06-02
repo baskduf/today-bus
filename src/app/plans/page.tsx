@@ -40,6 +40,7 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
   const tripInput = planResponse.effectiveInput;
   const { itinerary } = planResponse;
   const { recoveryPlan, recommendedPlan } = planResponse;
+  const { train } = planResponse;
   const missedPlanId = resolveMissedPlanId(params);
   const isMissedFlow = missedPlanId === recommendedPlan.id;
   const alternativePlans = planResponse.plans.filter((plan) => !plan.primary);
@@ -67,18 +68,18 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
               <p className="text-[16px] font-bold text-[var(--ob-text2)]">
                 {itinerary.originPlace.label} →{" "}
                 {itinerary.boardingStop.name} 정류장 →{" "}
-                {itinerary.destinationPlace.label} · {tripInput.arrival}
+                {train.destinationStation} · {train.departureTime} 기차
               </p>
               <h1 className="text-[28px] font-black leading-tight text-[var(--ob-text)]">
-                오늘 나갈 시간을 골라보세요
+                기차 시간에 맞춰 나갈 시간을 골라보세요
               </h1>
             </div>
           </div>
           <p className="text-[17px] font-bold text-[var(--ob-text2)]">
             {itinerary.boardingStop.name}에서 {itinerary.route.routeNo}번{" "}
             {itinerary.route.directionLabel} 탑승,{" "}
-            {itinerary.alightingStop.name} 하차 · 안전 여유 {tripInput.buffer}분
-            기준입니다.
+            {itinerary.alightingStop.name} 하차 · {train.stationArrivalDeadline}
+            까지 구미역 도착 기준입니다.
           </p>
         </section>
 
