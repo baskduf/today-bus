@@ -86,3 +86,22 @@ Current estimate:
 
 This is good enough for demo planning but should be replaced by operator-provided
 stop-level timetable data if it becomes available.
+
+## Offset Observation
+
+Use `node scripts/check-gumi-bis-offset.mjs` to compare TAGO live arrival data at
+`GMB780` with the nearest Gumi BIS route-start timetable entry for route
+`18020`.
+
+The script loads `TAGO_SERVICE_KEY` from `.env.local` through the Next.js env
+loader and never prints the key. It returns JSON containing:
+
+- the current TAGO arrival count;
+- the Gumi BIS departure count and schedule type;
+- one match per usable positive `arrtime`;
+- `observedOffsetMinutes` compared with the planner's current
+  `plannerOffsetMinutes`.
+
+If TAGO returns zero live arrivals, the script exits successfully with
+`status: "unobservable"` and an empty `matches` array. This is a normal handled
+state, not a failure.
