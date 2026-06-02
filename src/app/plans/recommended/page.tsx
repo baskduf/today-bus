@@ -6,11 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { SketchCard } from "@/components/ui/sketch-card";
 import {
   createTripHref,
-  recoveryPlan,
-  recommendedPlan,
-  resolveTripInput,
   type TripSearchParams,
 } from "@/lib/today-bus/mock-plans";
+import { createTodayBusPlanResponseFromParams } from "@/lib/today-bus/planner";
 import { IconArrow, IconBus, IconWarn } from "@/components/icons/doodle-icons";
 import { obColors } from "@/lib/design/tokens";
 
@@ -21,7 +19,11 @@ type RecommendedPageProps = {
 export default async function RecommendedPlanPage({
   searchParams,
 }: RecommendedPageProps) {
-  const tripInput = resolveTripInput(await searchParams);
+  const planResponse = await createTodayBusPlanResponseFromParams(
+    await searchParams,
+  );
+  const tripInput = planResponse.effectiveInput;
+  const { recoveryPlan, recommendedPlan } = planResponse;
   const plansHref = createTripHref("/plans", tripInput);
   const missedHref = `${createTripHref("/plans", tripInput, {
     missed: recommendedPlan.id,
@@ -72,6 +74,21 @@ export default async function RecommendedPlanPage({
             </div>
           </div>
         </SketchCard>
+
+        {planResponse.warnings.length > 0 ? (
+          <SketchCard accent={obColors.yellow} bg="#FFF9E8" pad={16} radius="r2">
+            <div className="flex flex-col gap-1">
+              {planResponse.warnings.map((warning) => (
+                <p
+                  className="text-[16px] font-bold text-[var(--ob-text)]"
+                  key={warning}
+                >
+                  {warning}
+                </p>
+              ))}
+            </div>
+          </SketchCard>
+        ) : null}
 
         <section className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
