@@ -1,0 +1,6 @@
+{
+  "kit_url": "https://github.com/baskduf/harness-starter-kit",
+  "kit_commit": "9bc6649cbca15261270d09352b384dd959025545",
+  "updated_at": "2026-06-02",
+  "update_command": "/harness update"
+}

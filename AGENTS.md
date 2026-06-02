@@ -61,6 +61,8 @@ Inspect these before architecture, workflow, integration, or repeated-failure wo
 
 Add or update durable docs when behavior, architecture, commands, conventions, known failures, or harness rules change. If a user-visible runtime failure, failed check, repeated agent mistake, data-loss risk, security issue, or cross-environment mismatch is fixed, add a `docs/failures/` record unless an existing record already covers it.
 
+For structural product or workflow changes, mock/API boundary choices, major data models or state classifications, or UX principles that become code structure, add a `docs/decisions/` record or explicitly state which existing ADR covers the decision. A domain glossary update does not replace a decision record.
+
 ## Completion Criteria
 
 - Review `git status --short` and avoid unrelated edits.
