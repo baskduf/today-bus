@@ -1,0 +1,15 @@
+export const tagoDemoIdentifiers = {
+  cityCode: "37050",
+  cityName: "구미시",
+  destinationNodeId: "GMB79",
+  destinationNodeName: "구미역(중앙시장)",
+  destinationStopNo: "10079",
+  destinationStopOrder: 29,
+  oppositeRouteId: "GMB18010",
+  originNodeId: "GMB780",
+  originNodeName: "진평중학교입구건너",
+  originStopNo: "10780",
+  originStopOrder: 5,
+  routeId: "GMB18020",
+  routeNo: "180",
+} as const;

@@ -1,32 +1,34 @@
 import { NextResponse } from "next/server";
-import {
-  getTagoDemoSnapshot,
-  tagoDemoIdentifiers,
-} from "@/lib/transit/tago-provider";
+import { getSafeTagoErrorMessage } from "@/lib/tago/client";
+import { getTagoDemoHealth } from "@/lib/transit/tago-provider";
 
 export async function GET() {
   try {
-    const snapshot = await getTagoDemoSnapshot();
+    const health = await getTagoDemoHealth();
+    const status = !health.keyConfigured ? 503 : health.ok ? 200 : 502;
 
-    return NextResponse.json({
-      checkedAt: snapshot.checkedAt,
-      configured: true,
-      demo: {
-        arrivalCount: snapshot.arrivals.length,
-        city: snapshot.city,
-        destinationStop: snapshot.destinationStop,
-        originStop: snapshot.originStop,
-        route: snapshot.route,
-        routeStopCount: snapshot.routeStops.length,
-        identifiers: tagoDemoIdentifiers,
+    return NextResponse.json(
+      {
+        arrivalCount: health.arrivalCount,
+        arrivalLookup: health.arrivalLookup,
+        checkedAt: health.checkedAt,
+        cityLookup: health.cityLookup,
+        demo: {
+          identifiers: health.identifiers,
+        },
+        fallbackRequired: health.fallbackRequired,
+        keyConfigured: health.keyConfigured,
+        ok: health.ok,
+        routeLookup: health.routeLookup,
+        routeStopOrder: health.routeStopOrder,
       },
-      ok: true,
-    });
+      { status },
+    );
   } catch (error) {
     return NextResponse.json(
       {
-        configured: Boolean(process.env.TAGO_SERVICE_KEY),
-        error: error instanceof Error ? error.message : "Unknown TAGO error",
+        error: getSafeTagoErrorMessage(error),
+        keyConfigured: Boolean(process.env.TAGO_SERVICE_KEY?.trim()),
         ok: false,
       },
       { status: 502 },
