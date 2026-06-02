@@ -17,12 +17,15 @@ You can start editing the page by modifying `src/app/page.tsx`. The page auto-up
 
 ```bash
 npm run lint
+npm run test:planner
 npm run typecheck
 npm run build
 npm run check:harness
 ```
 
 `npm run check:harness` runs the local harness verification path for this repository: lint, TypeScript, production build, and lightweight docs/structure drift checks.
+
+`npm run test:planner` runs the focused source-branch checks for TAGO, Gumi BIS timetable, and mock planner fallback behavior.
 
 ## Harness Notes
 
