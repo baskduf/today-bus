@@ -13,12 +13,24 @@ import {
   tagoDemoIdentifiers,
   type TagoDemoSnapshot,
 } from "@/lib/transit/tago-provider";
-import type { TagoArrival } from "@/lib/tago/client";
+import { getSafeTagoErrorMessage, type TagoArrival } from "@/lib/tago/client";
 
 export type TodayBusPlanSource = "mock" | "tago";
 
+export type TodayBusFallbackReason =
+  | "future_planning_not_supported"
+  | "no_arrival"
+  | "tago_error"
+  | "unsupported_route";
+
+export type TodayBusFallback = {
+  message: string;
+  reason: TodayBusFallbackReason;
+};
+
 export type TodayBusPlanResponse = {
   effectiveInput: TripInput;
+  fallback?: TodayBusFallback;
   plans: BusPlan[];
   recoveryPlan: BusPlan;
   recommendedPlan: BusPlan;
@@ -177,6 +189,7 @@ function createMockResponse(
   requestedInput: TripInput,
   warnings: string[],
   tago?: TodayBusPlanResponse["tago"],
+  fallback?: TodayBusFallback,
 ): TodayBusPlanResponse {
   return {
     effectiveInput: {
@@ -185,6 +198,7 @@ function createMockResponse(
       destination: tripDefaults.destination,
       origin: tripDefaults.origin,
     },
+    fallback,
     plans: busPlans,
     recoveryPlan,
     recommendedPlan,
@@ -201,10 +215,25 @@ export async function createTodayBusPlanResponse(
   const warnings: string[] = [];
 
   if (!isDemoInput(requestedInput)) {
-    warnings.push(
-      "현재 TAGO 연동은 진평동에서 구미역까지의 데모 구간만 지원합니다. 데모 구간 기준 플랜을 보여줍니다.",
-    );
-    return createMockResponse(requestedInput, warnings);
+    const fallback = {
+      message:
+        "현재 TAGO 연동은 진평동에서 구미역까지의 데모 구간만 지원합니다. 데모 구간 기준 플랜을 보여줍니다.",
+      reason: "unsupported_route",
+    } satisfies TodayBusFallback;
+
+    warnings.push(fallback.message);
+    return createMockResponse(requestedInput, warnings, undefined, fallback);
+  }
+
+  if (!parseTodayArrival(requestedInput)) {
+    const fallback = {
+      message:
+        "현재 TAGO 실시간 연동은 '오늘 HH:mm' 형식의 당일 도착 희망만 해석합니다. mock 플랜을 보여줍니다.",
+      reason: "future_planning_not_supported",
+    } satisfies TodayBusFallback;
+
+    warnings.push(fallback.message);
+    return createMockResponse(requestedInput, warnings, undefined, fallback);
   }
 
   try {
@@ -221,13 +250,17 @@ export async function createTodayBusPlanResponse(
     const livePlan = createLivePlan(requestedInput, snapshot);
 
     if (!livePlan) {
-      warnings.push(
-        "TAGO 실시간 도착정보에 현재 180번 도착예정이 없어 mock 플랜으로 대체했습니다.",
-      );
+      const fallback = {
+        message:
+          "TAGO 실시간 도착정보에 현재 180번 도착예정이 없어 mock 플랜으로 대체했습니다.",
+        reason: "no_arrival",
+      } satisfies TodayBusFallback;
+
+      warnings.push(fallback.message);
       warnings.push(
         "미래 도착 희망 시간 계획은 시간표 데이터가 확보되기 전까지 제한됩니다.",
       );
-      return createMockResponse(requestedInput, warnings, tago);
+      return createMockResponse(requestedInput, warnings, tago, fallback);
     }
 
     const livePlans = [livePlan, ...busPlans.filter((plan) => !plan.primary)];
@@ -242,12 +275,13 @@ export async function createTodayBusPlanResponse(
       warnings,
     };
   } catch (error) {
-    warnings.push(
-      error instanceof Error
-        ? `TAGO 호출 실패로 mock 플랜을 사용합니다: ${error.message}`
-        : "TAGO 호출 실패로 mock 플랜을 사용합니다.",
-    );
-    return createMockResponse(requestedInput, warnings);
+    const fallback = {
+      message: `TAGO 호출 실패로 mock 플랜을 사용합니다: ${getSafeTagoErrorMessage(error)}`,
+      reason: "tago_error",
+    } satisfies TodayBusFallback;
+
+    warnings.push(fallback.message);
+    return createMockResponse(requestedInput, warnings, undefined, fallback);
   }
 }
 

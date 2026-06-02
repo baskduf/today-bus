@@ -3,6 +3,7 @@ import {
   createTodayBusPlanResponse,
   type TodayBusPlanResponse,
 } from "@/lib/today-bus/planner";
+import { getSafeTagoErrorMessage } from "@/lib/tago/client";
 import { tripDefaults, type TripInput } from "@/lib/today-bus/mock-plans";
 
 type PlanRequestBody = {
@@ -36,8 +37,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Unable to create bus plans",
+        error: getSafeTagoErrorMessage(error, "Unable to create bus plans"),
       },
       { status: 400 },
     );
