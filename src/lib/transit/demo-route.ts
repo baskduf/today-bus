@@ -11,5 +11,6 @@ export const tagoDemoIdentifiers = {
   originStopNo: "10780",
   originStopOrder: 5,
   routeId: "GMB18020",
+  timetableRouteId: "18020",
   routeNo: "180",
 } as const;

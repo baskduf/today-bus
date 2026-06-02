@@ -14,13 +14,20 @@ import {
   type TagoDemoSnapshot,
 } from "@/lib/transit/tago-provider";
 import { getSafeTagoErrorMessage, type TagoArrival } from "@/lib/tago/client";
+import {
+  getGumiBisScheduleTypeForDate,
+  getGumiBisTimetable,
+  type GumiBisScheduleType,
+  type GumiBisTimetableEntry,
+} from "@/lib/gumi-bis/client";
 
-export type TodayBusPlanSource = "mock" | "tago";
+export type TodayBusPlanSource = "gumi_bis_timetable" | "mock" | "tago";
 
 export type TodayBusFallbackReason =
   | "future_planning_not_supported"
   | "no_arrival"
   | "tago_error"
+  | "timetable_error"
   | "unsupported_route";
 
 export type TodayBusFallback = {
@@ -44,6 +51,15 @@ export type TodayBusPlanResponse = {
     originNodeId: string;
     routeId: string;
     routeNo: string;
+  };
+  timetable?: {
+    checkedAt: string;
+    departureCount: number;
+    originOffsetMinutes: number;
+    provider: "gumi_bis";
+    routeId: string;
+    routeNo: string;
+    scheduleType: GumiBisScheduleType;
   };
   warnings: string[];
 };
@@ -127,6 +143,17 @@ function addMinutes(date: Date, minutes: number) {
   return new Date(date.getTime() + minutes * 60_000);
 }
 
+function parseClockTime(value: string) {
+  const match = value.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return undefined;
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return undefined;
+
+  return { hour, minute };
+}
+
 function getArrivalSeconds(arrival: TagoArrival) {
   return typeof arrival.arrtime === "number" && arrival.arrtime > 0
     ? arrival.arrtime
@@ -189,6 +216,41 @@ function createArrivalDetail(
   }
 
   return `${input.arrival} 기준 여유 ${slackMinutes}분 · 안전 기준 ${safetyBufferMinutes}분`;
+}
+
+function getEstimatedOriginOffsetMinutes() {
+  const originFromRouteStartStops = tagoDemoIdentifiers.originStopOrder - 1;
+  const originToDestinationStops =
+    tagoDemoIdentifiers.destinationStopOrder -
+    tagoDemoIdentifiers.originStopOrder;
+
+  if (originFromRouteStartStops <= 0 || originToDestinationStops <= 0) {
+    return 0;
+  }
+
+  return Math.round(
+    (busRideMinutes / originToDestinationStops) * originFromRouteStartStops,
+  );
+}
+
+function createStatusNote(
+  status: BusPlan["status"],
+  slackMinutes: number,
+  safetyBufferMinutes: number,
+) {
+  if (status === "late") {
+    return `도착 희망보다 ${Math.abs(slackMinutes)}분 늦어요`;
+  }
+
+  if (status === "too_early") {
+    return `도착 후 ${slackMinutes}분 정도 기다려야 해요`;
+  }
+
+  if (status === "safe") {
+    return `안전 여유 ${slackMinutes}분이에요`;
+  }
+
+  return `안전 기준보다 ${safetyBufferMinutes - slackMinutes}분 부족해요`;
 }
 
 function createLivePlan(
@@ -280,6 +342,238 @@ function createLivePlan(
   };
 }
 
+type TimetableCandidate = {
+  arrivalTime: Date;
+  boardingTime: Date;
+  busStopArrivalTime: Date;
+  departureTime: Date;
+  dropOffTime: Date;
+  entry: GumiBisTimetableEntry;
+  routeStartTime: Date;
+  slackMinutes: number;
+  status: ReturnType<typeof classifyPlan>;
+};
+
+function createTimetableCandidates({
+  desiredArrivalTime,
+  entries,
+  input,
+  originOffsetMinutes,
+}: {
+  desiredArrivalTime: Date;
+  entries: GumiBisTimetableEntry[];
+  input: TripInput;
+  originOffsetMinutes: number;
+}) {
+  const safetyBufferMinutes = parseSafetyBufferMinutes(input);
+  const kstDateParts = getKstDateParts(desiredArrivalTime);
+
+  return entries
+    .reduce<TimetableCandidate[]>((candidates, entry) => {
+      const clockTime = parseClockTime(entry.starttime);
+      if (!clockTime) return candidates;
+
+      const routeStartTime = createKstDate({
+        ...kstDateParts,
+        ...clockTime,
+      });
+      const boardingTime = addMinutes(routeStartTime, originOffsetMinutes);
+      const busStopArrivalTime = addMinutes(boardingTime, -stopWaitMinutes);
+      const departureTime = addMinutes(
+        boardingTime,
+        -(homeWalkMinutes + stopWaitMinutes),
+      );
+      const dropOffTime = addMinutes(boardingTime, busRideMinutes);
+      const arrivalTime = addMinutes(dropOffTime, destinationWalkMinutes);
+      const slackMinutes = getSlackMinutes(arrivalTime, desiredArrivalTime);
+
+      candidates.push({
+        arrivalTime,
+        boardingTime,
+        busStopArrivalTime,
+        departureTime,
+        dropOffTime,
+        entry,
+        routeStartTime,
+        slackMinutes,
+        status: classifyPlan(slackMinutes, safetyBufferMinutes),
+      });
+
+      return candidates;
+    }, [])
+    .sort(
+      (left, right) =>
+        left.routeStartTime.getTime() - right.routeStartTime.getTime(),
+    );
+}
+
+function chooseRecommendedTimetableIndex(candidates: TimetableCandidate[]) {
+  for (let index = candidates.length - 1; index >= 0; index -= 1) {
+    if (candidates[index].slackMinutes >= 0) return index;
+  }
+
+  return candidates.length > 0 ? 0 : -1;
+}
+
+function createTimetableBusPlan({
+  candidate,
+  input,
+  isPrimary,
+  label,
+  missedDelayMinutes,
+}: {
+  candidate: TimetableCandidate;
+  input: TripInput;
+  isPrimary: boolean;
+  label: string;
+  missedDelayMinutes?: number;
+}): BusPlan {
+  const safetyBufferMinutes = parseSafetyBufferMinutes(input);
+
+  return {
+    ...recommendedPlan,
+    arrivalTime: formatTime(candidate.arrivalTime),
+    boardingTime: formatTime(candidate.boardingTime),
+    busStopArrivalTime: formatTime(candidate.busStopArrivalTime),
+    departureTime: formatTime(candidate.departureTime),
+    detailHrefId: isPrimary
+      ? "recommended"
+      : `timetable-${candidate.entry.bttSeqno}`,
+    dropOffTime: formatTime(candidate.dropOffTime),
+    id: isPrimary
+      ? "plan-timetable-recommended"
+      : `plan-timetable-${candidate.entry.bttSeqno}`,
+    label,
+    missedDelayMinutes,
+    primary: isPrimary,
+    status: candidate.status,
+    statusLine: createLiveStatusLine(
+      candidate.status,
+      candidate.slackMinutes,
+      safetyBufferMinutes,
+    ),
+    statusNote:
+      missedDelayMinutes && isPrimary
+        ? `놓치면 ${missedDelayMinutes}분 늦어요`
+        : createStatusNote(
+            candidate.status,
+            candidate.slackMinutes,
+            safetyBufferMinutes,
+          ),
+    summaryLine: isPrimary
+      ? `대기 ${stopWaitMinutes}분 · ${formatSlackSummary(candidate.slackMinutes)}`
+      : `${formatTime(candidate.boardingTime)} 탑승 · ${formatTime(
+          candidate.arrivalTime,
+        )} 도착`,
+    timeline: [
+      {
+        detail: `${tagoDemoIdentifiers.originNodeName}까지 ${homeWalkMinutes}분`,
+        kind: "home",
+        label: "집에서 출발",
+        time: formatTime(candidate.departureTime),
+      },
+      {
+        detail: `${stopWaitMinutes}분 대기`,
+        kind: "stop",
+        label: "정류장 도착",
+        time: formatTime(candidate.busStopArrivalTime),
+      },
+      {
+        detail: `기점 ${formatTime(
+          candidate.routeStartTime,
+        )} 출발표 기준 · 정류장 통과 추정`,
+        kind: "bus",
+        label: `${tagoDemoIdentifiers.routeNo}번 버스 탑승`,
+        time: formatTime(candidate.boardingTime),
+      },
+      {
+        detail: `${input.destination}까지 도보 ${destinationWalkMinutes}분`,
+        kind: "walk",
+        label: `${tagoDemoIdentifiers.destinationNodeName} 하차`,
+        time: formatTime(candidate.dropOffTime),
+      },
+      {
+        detail: createArrivalDetail(
+          input,
+          candidate.slackMinutes,
+          safetyBufferMinutes,
+        ),
+        kind: "arrival",
+        label: `${input.destination} 도착`,
+        time: formatTime(candidate.arrivalTime),
+      },
+    ],
+  };
+}
+
+function createTimetablePlans(
+  input: TripInput,
+  desiredArrivalTime: Date,
+  entries: GumiBisTimetableEntry[],
+) {
+  const originOffsetMinutes = getEstimatedOriginOffsetMinutes();
+  const candidates = createTimetableCandidates({
+    desiredArrivalTime,
+    entries,
+    input,
+    originOffsetMinutes,
+  });
+  const recommendedIndex = chooseRecommendedTimetableIndex(candidates);
+
+  if (recommendedIndex < 0) return undefined;
+
+  const recommendedCandidate = candidates[recommendedIndex];
+  const previousCandidate =
+    recommendedIndex > 0 ? candidates[recommendedIndex - 1] : undefined;
+  const nextCandidate = candidates[recommendedIndex + 1];
+  const missedDelayMinutes = nextCandidate
+    ? Math.ceil(
+        (nextCandidate.arrivalTime.getTime() -
+          recommendedCandidate.arrivalTime.getTime()) /
+          60_000,
+      )
+    : undefined;
+  const recommendedTimetablePlan = createTimetableBusPlan({
+    candidate: recommendedCandidate,
+    input,
+    isPrimary: true,
+    label: "추천 플랜 A",
+    missedDelayMinutes,
+  });
+  const alternativePlans = [
+    previousCandidate
+      ? createTimetableBusPlan({
+          candidate: previousCandidate,
+          input,
+          isPrimary: false,
+          label: "더 이른 플랜",
+        })
+      : undefined,
+    nextCandidate
+      ? createTimetableBusPlan({
+          candidate: nextCandidate,
+          input,
+          isPrimary: false,
+          label: "다음 플랜",
+        })
+      : undefined,
+  ].filter((plan): plan is BusPlan => plan !== undefined);
+
+  return {
+    originOffsetMinutes,
+    plans: [recommendedTimetablePlan, ...alternativePlans],
+    recoveryPlan: nextCandidate
+      ? createTimetableBusPlan({
+          candidate: nextCandidate,
+          input,
+          isPrimary: false,
+          label: "다음 플랜",
+        })
+      : recommendedTimetablePlan,
+    recommendedPlan: recommendedTimetablePlan,
+  };
+}
+
 function createMockResponse(
   requestedInput: TripInput,
   warnings: string[],
@@ -300,6 +594,55 @@ function createMockResponse(
     requestedInput,
     source: "mock",
     tago,
+    warnings,
+  };
+}
+
+async function createTimetableResponse({
+  desiredArrivalTime,
+  requestedInput,
+  tago,
+  timetableWarning,
+  warnings,
+}: {
+  desiredArrivalTime: Date;
+  requestedInput: TripInput;
+  tago?: TodayBusPlanResponse["tago"];
+  timetableWarning: string;
+  warnings: string[];
+}): Promise<TodayBusPlanResponse | undefined> {
+  const scheduleType = getGumiBisScheduleTypeForDate(desiredArrivalTime);
+  const timetable = await getGumiBisTimetable(
+    tagoDemoIdentifiers.timetableRouteId,
+    scheduleType,
+  );
+  const timetablePlans = createTimetablePlans(
+    requestedInput,
+    desiredArrivalTime,
+    timetable.rows,
+  );
+
+  if (!timetablePlans) return undefined;
+
+  warnings.push(timetableWarning);
+
+  return {
+    effectiveInput: requestedInput,
+    plans: timetablePlans.plans,
+    recoveryPlan: timetablePlans.recoveryPlan,
+    recommendedPlan: timetablePlans.recommendedPlan,
+    requestedInput,
+    source: "gumi_bis_timetable",
+    tago,
+    timetable: {
+      checkedAt: new Date().toISOString(),
+      departureCount: timetable.rows.length,
+      originOffsetMinutes: timetablePlans.originOffsetMinutes,
+      provider: "gumi_bis",
+      routeId: tagoDemoIdentifiers.timetableRouteId,
+      routeNo: tagoDemoIdentifiers.routeNo,
+      scheduleType,
+    },
     warnings,
   };
 }
@@ -332,9 +675,14 @@ export async function createTodayBusPlanResponse(
     return createMockResponse(requestedInput, warnings, undefined, fallback);
   }
 
+  let tago: TodayBusPlanResponse["tago"] | undefined;
+  let mockFallbackReason: TodayBusFallbackReason = "timetable_error";
+  let timetableWarning =
+    "구미 BIS 공식 시간표와 정류장 통과 추정으로 계산했습니다.";
+
   try {
     const snapshot = await getTagoDemoSnapshot();
-    const tago = {
+    tago = {
       arrivalCount: snapshot.arrivals.length,
       checkedAt: snapshot.checkedAt,
       cityCode: tagoDemoIdentifiers.cityCode,
@@ -352,37 +700,67 @@ export async function createTodayBusPlanResponse(
     if (!livePlan) {
       const fallback = {
         message:
-          "TAGO 실시간 도착정보에 현재 180번 도착예정이 없어 mock 플랜으로 대체했습니다.",
+          "TAGO 실시간 도착정보에 현재 180번 도착예정이 없어 구미 BIS 공식 시간표를 확인합니다.",
         reason: "no_arrival",
       } satisfies TodayBusFallback;
 
       warnings.push(fallback.message);
+      mockFallbackReason = "no_arrival";
+      timetableWarning =
+        "TAGO 실시간 도착정보가 없어 구미 BIS 공식 시간표와 정류장 통과 추정으로 계산했습니다.";
+    } else if (livePlan.status === "too_early") {
       warnings.push(
-        "미래 도착 희망 시간 계획은 시간표 데이터가 확보되기 전까지 제한됩니다.",
+        "현재 TAGO 첫 도착은 희망 시각보다 너무 이른 플랜이라 구미 BIS 공식 시간표를 확인합니다.",
       );
-      return createMockResponse(requestedInput, warnings, tago, fallback);
+      timetableWarning =
+        "희망 도착 시각에 맞춰 구미 BIS 공식 시간표와 정류장 통과 추정으로 계산했습니다.";
+    } else {
+      const livePlans = [livePlan, ...busPlans.filter((plan) => !plan.primary)];
+      return {
+        effectiveInput: requestedInput,
+        plans: livePlans,
+        recoveryPlan,
+        recommendedPlan: livePlan,
+        requestedInput,
+        source: "tago",
+        tago,
+        warnings,
+      };
     }
-
-    const livePlans = [livePlan, ...busPlans.filter((plan) => !plan.primary)];
-    return {
-      effectiveInput: requestedInput,
-      plans: livePlans,
-      recoveryPlan,
-      recommendedPlan: livePlan,
-      requestedInput,
-      source: "tago",
-      tago,
-      warnings,
-    };
   } catch (error) {
-    const fallback = {
-      message: `TAGO 호출 실패로 mock 플랜을 사용합니다: ${getSafeTagoErrorMessage(error)}`,
-      reason: "tago_error",
-    } satisfies TodayBusFallback;
-
-    warnings.push(fallback.message);
-    return createMockResponse(requestedInput, warnings, undefined, fallback);
+    mockFallbackReason = "tago_error";
+    warnings.push(
+      `TAGO 호출 실패로 공식 시간표를 먼저 시도합니다: ${getSafeTagoErrorMessage(error)}`,
+    );
+    timetableWarning =
+      "TAGO 실시간 대신 구미 BIS 공식 시간표와 정류장 통과 추정으로 계산했습니다.";
   }
+
+  try {
+    const timetableResponse = await createTimetableResponse({
+      desiredArrivalTime,
+      requestedInput,
+      tago,
+      timetableWarning,
+      warnings,
+    });
+
+    if (timetableResponse) return timetableResponse;
+  } catch (error) {
+    warnings.push(
+      `구미 BIS 공식 시간표 조회 실패로 mock 플랜을 사용합니다: ${getSafeTagoErrorMessage(error)}`,
+    );
+  }
+
+  const fallback = {
+    message: tago
+      ? "TAGO 실시간 도착정보와 구미 BIS 공식 시간표에서 사용할 수 있는 미래 계획을 찾지 못해 mock 플랜으로 대체했습니다."
+      : "TAGO 호출과 구미 BIS 공식 시간표 조회 실패로 mock 플랜을 사용합니다.",
+    reason: mockFallbackReason,
+  } satisfies TodayBusFallback;
+
+  warnings.push(fallback.message);
+  return createMockResponse(requestedInput, warnings, tago, fallback);
 }
 
 export async function createTodayBusPlanResponseFromParams(
