@@ -11,6 +11,11 @@ type PlanRequestBody = {
   desiredArrivalTime?: string;
   destination?: string;
   origin?: string;
+  originAddress?: string;
+  originLat?: number | string;
+  originLng?: number | string;
+  originPlaceName?: string;
+  originSource?: TripInput["originSource"];
   safetyBufferMinutes?: number;
 };
 
@@ -23,6 +28,13 @@ function normalizeBody(body: PlanRequestBody): TripInput {
         : tripDefaults.buffer,
     destination: body.destination ?? tripDefaults.destination,
     origin: body.origin ?? tripDefaults.origin,
+    originAddress: body.originAddress,
+    originLat:
+      body.originLat === undefined ? undefined : String(body.originLat),
+    originLng:
+      body.originLng === undefined ? undefined : String(body.originLng),
+    originPlaceName: body.originPlaceName,
+    originSource: body.originSource,
   };
 }
 
