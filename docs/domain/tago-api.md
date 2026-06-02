@@ -112,6 +112,29 @@ Before replacing mock data, confirm and record:
 - Whether TAGO returns one or multiple upcoming arrival predictions for route
   `180` at the origin stop.
 
+Confirmed demo identifiers:
+
+- Gumi `cityCode`: `37050`
+- Route `180` toward 구미역: `GMB18020`
+  - Start: `구평예다음아파트2차`
+  - End: `구미역(중앙시장)`
+- Opposite route `180`: `GMB18010`
+  - Start: `구미역`
+  - End: `구평예다음아파트2차`
+- Origin stop for 진평동 to 구미역 direction:
+  - `nodeId`: `GMB780`
+  - Name: `진평중학교입구건너`
+  - Stop number: `10780`
+  - Route order on `GMB18020`: `5`
+- Destination-side stop:
+  - `nodeId`: `GMB79`
+  - Name: `구미역(중앙시장)`
+  - Stop number: `10079`
+  - Route order on `GMB18020`: `29`
+- Current spike result: `/getSttnAcctoSpcifyRouteBusArvlPrearngeInfoList` for
+  `cityCode=37050`, `nodeId=GMB780`, `routeId=GMB18020` can return no upcoming
+  arrivals depending on current operation state.
+
 ## Backend Shape
 
 The frontend should not consume TAGO responses directly. Today-Bus should expose
@@ -140,12 +163,13 @@ current UI can switch from mock data to backend data with minimal churn.
 ## First Spike Order
 
 1. Add `TAGO_SERVICE_KEY` to local `.env.local`.
-2. Call `/getCtyCodeList` and confirm Gumi city code.
-3. Call `/getRouteNoList` for route `180`.
-4. Call `/getSttnNoList` or `/getCrdntPrxmtSttnList` for 진평중학교 정류장 and 구미역 area stops.
-5. Call `/getRouteAcctoThrghSttnList` to confirm direction and stop order.
-6. Call `/getSttnAcctoSpcifyRouteBusArvlPrearngeInfoList` for the route and origin stop.
-7. Decide whether the initial backend can support only "leave soon" decisions or
+2. Run `node scripts/tago-spike.mjs`.
+3. Confirm Gumi city code.
+4. Confirm route `180`.
+5. Confirm 진평중학교 and 구미역 stop IDs.
+6. Confirm direction and stop order.
+7. Confirm whether route-specific arrival predictions are currently available.
+8. Decide whether the initial backend can support only "leave soon" decisions or
    also future arrival-time planning.
 
 ## Known Gap
