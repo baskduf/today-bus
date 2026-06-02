@@ -9,6 +9,7 @@ import { StatusDecisionGuide } from "@/components/today-bus/status-decision-guid
 import { Badge } from "@/components/ui/badge";
 import { SketchCard } from "@/components/ui/sketch-card";
 import {
+  formatClockOnly,
   resolveMissedPlanId,
   type TripSearchParams,
 } from "@/lib/today-bus/mock-plans";
@@ -34,6 +35,10 @@ const sourceBadgeMeta = {
   },
 } as const;
 
+function displayClock(value: string) {
+  return formatClockOnly(value) ?? value.replace(/^오늘\s+/, "");
+}
+
 export default async function PlansPage({ searchParams }: PlansPageProps) {
   const params = await searchParams;
   const planResponse = await createTodayBusPlanResponseFromParams(params);
@@ -45,6 +50,8 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
   const isMissedFlow = missedPlanId === recommendedPlan.id;
   const alternativePlans = planResponse.plans.filter((plan) => !plan.primary);
   const sourceBadge = sourceBadgeMeta[planResponse.source];
+  const trainDepartureClock = displayClock(train.departureTime);
+  const stationArrivalClock = displayClock(train.stationArrivalDeadline);
 
   return (
     <main className="min-h-screen bg-[var(--ob-bg)] px-4 py-6 text-[var(--ob-text)] sm:px-6">
@@ -68,7 +75,7 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
               <p className="text-[16px] font-bold text-[var(--ob-text2)]">
                 {itinerary.originPlace.label} →{" "}
                 {itinerary.boardingStop.name} 정류장 →{" "}
-                {train.destinationStation} · {train.departureTime} 기차
+                {train.destinationStation} · {trainDepartureClock} 기차
               </p>
               <h1 className="text-[28px] font-black leading-tight text-[var(--ob-text)]">
                 기차 시간에 맞춰 나갈 시간을 골라보세요
@@ -78,8 +85,12 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
           <p className="text-[17px] font-bold text-[var(--ob-text2)]">
             {itinerary.boardingStop.name}에서 {itinerary.route.routeNo}번{" "}
             {itinerary.route.directionLabel} 탑승,{" "}
-            {itinerary.alightingStop.name} 하차 · {train.stationArrivalDeadline}
+            {itinerary.alightingStop.name} 하차 · {stationArrivalClock}
             까지 구미역 도착 기준입니다.
+          </p>
+          <p className="text-[18px] font-black text-[var(--ob-green-deep)]">
+            {trainDepartureClock} 기차 · {stationArrivalClock}까지 구미역 도착 ·{" "}
+            추천 {recommendedPlan.departureTime} 출발
           </p>
         </section>
 

@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { SketchCard } from "@/components/ui/sketch-card";
 import { obColors } from "@/lib/design/tokens";
 import {
+  formatClockOnly,
   planStatusMeta,
   type BusPlan,
   type TripInput,
@@ -27,6 +28,10 @@ const statusAccents = {
   too_early: obColors.yellow,
 } as const;
 
+function displayClock(value: string) {
+  return formatClockOnly(value) ?? value.replace(/^오늘\s+/, "");
+}
+
 export function PlanCard({
   anchorId,
   emphasis,
@@ -37,6 +42,8 @@ export function PlanCard({
   const status = planStatusMeta[plan.status];
   const detailHref = createTripHref("/plans/recommended", tripInput);
   const isRecovery = emphasis === "recovery";
+  const trainDepartureClock = displayClock(tripInput.trainDeparture);
+  const stationArrivalClock = displayClock(tripInput.arrival);
 
   return (
     <SketchCard
@@ -83,6 +90,35 @@ export function PlanCard({
             {itinerary.boardingStop.name} 정류장으로
           </p>
         </div>
+
+        {plan.primary ? (
+          <div className="grid gap-2 border-y-2 border-dashed border-[var(--ob-ink-soft)] py-3 sm:grid-cols-3">
+            <div>
+              <p className="text-[14px] font-bold text-[var(--ob-text2)]">
+                기차
+              </p>
+              <p className="text-[20px] font-black text-[var(--ob-text)]">
+                {trainDepartureClock} 기차
+              </p>
+            </div>
+            <div>
+              <p className="text-[14px] font-bold text-[var(--ob-text2)]">
+                구미역 도착
+              </p>
+              <p className="text-[20px] font-black text-[var(--ob-text)]">
+                {stationArrivalClock}까지
+              </p>
+            </div>
+            <div>
+              <p className="text-[14px] font-bold text-[var(--ob-text2)]">
+                집 출발
+              </p>
+              <p className="text-[20px] font-black text-[var(--ob-green-deep)]">
+                {plan.departureTime} 출발
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid gap-3 text-[18px] font-bold text-[var(--ob-text)] sm:grid-cols-3">
           <div className="flex items-center gap-2">

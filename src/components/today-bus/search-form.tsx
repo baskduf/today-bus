@@ -15,13 +15,24 @@ import { obColors } from "@/lib/design/tokens";
 import {
   createStationArrivalTime,
   createTripHref,
+  formatClockOnly,
+  normalizeTrainDepartureTime,
   tripDefaults,
   type TripInput,
 } from "@/lib/today-bus/mock-plans";
 
 const inputClass =
   "h-14 w-full rounded-[18px] border-2 border-[var(--ob-ink-soft)] bg-white px-4 text-[21px] font-bold text-[var(--ob-text)] outline-none transition focus:border-[var(--ob-green-deep)]";
+const timeSelectClass =
+  "h-14 w-full rounded-[18px] border-2 border-[var(--ob-ink-soft)] bg-white px-3 text-center text-[24px] font-black text-[var(--ob-text)] outline-none transition focus:border-[var(--ob-green-deep)]";
 const kakaoMapAppKey = process.env.NEXT_PUBLIC_KAKAO_MAP_APP_KEY;
+const trainHourOptions = Array.from({ length: 24 }, (_, hour) =>
+  String(hour).padStart(2, "0"),
+);
+const trainMinuteOptions = Array.from({ length: 60 }, (_, minute) =>
+  String(minute).padStart(2, "0"),
+);
+const quickTrainTimes = ["14:10", "16:10", "18:10", "20:10"] as const;
 
 type KakaoPlaceCandidate = {
   addressName: string;
@@ -153,6 +164,12 @@ export function SearchForm() {
     "idle" | "loading" | "ready" | "unavailable"
   >(kakaoMapAppKey ? "idle" : "unavailable");
   const [originTouched, setOriginTouched] = useState(false);
+  const trainClock =
+    formatClockOnly(input.trainDeparture) ??
+    formatClockOnly(tripDefaults.trainDeparture) ??
+    "14:10";
+  const stationArrivalClock = formatClockOnly(input.arrival) ?? input.arrival;
+  const [selectedTrainHour, selectedTrainMinute] = trainClock.split(":");
 
   function withDerivedArrival(nextInput: TripInput): TripInput {
     return {
@@ -167,6 +184,22 @@ export function SearchForm() {
     setInput((current) =>
       withDerivedArrival({ ...current, [name]: value }),
     );
+  }
+
+  function updateTrainClock(clock: string) {
+    const trainDeparture = normalizeTrainDepartureTime(clock);
+    if (!trainDeparture) return;
+
+    setInput((current) =>
+      withDerivedArrival({ ...current, trainDeparture }),
+    );
+  }
+
+  function updateTrainClockPart(part: "hour" | "minute", value: string) {
+    const hour = part === "hour" ? value : selectedTrainHour;
+    const minute = part === "minute" ? value : selectedTrainMinute;
+
+    updateTrainClock(`${hour}:${minute}`);
   }
 
   function updateOrigin(value: string) {
@@ -316,20 +349,69 @@ export function SearchForm() {
               </span>
             ) : null}
           </label>
-          <label className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2">
             <span className="flex items-center gap-2 text-[15px] font-bold text-[var(--ob-text2)]">
               <IconClock size={20} stroke={obColors.ink} />
               기차 출발 시간
             </span>
-            <input
-              className={inputClass}
-              name="trainDeparture"
-              onChange={(event) =>
-                updateInput("trainDeparture", event.target.value)
-              }
-              value={input.trainDeparture}
-            />
-          </label>
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+              <select
+                aria-label="기차 출발 시"
+                className={timeSelectClass}
+                onChange={(event) =>
+                  updateTrainClockPart("hour", event.target.value)
+                }
+                value={selectedTrainHour}
+              >
+                {trainHourOptions.map((hour) => (
+                  <option key={hour} value={hour}>
+                    {hour}
+                  </option>
+                ))}
+              </select>
+              <span className="text-[24px] font-black text-[var(--ob-text2)]">
+                :
+              </span>
+              <select
+                aria-label="기차 출발 분"
+                className={timeSelectClass}
+                onChange={(event) =>
+                  updateTrainClockPart("minute", event.target.value)
+                }
+                value={selectedTrainMinute}
+              >
+                {trainMinuteOptions.map((minute) => (
+                  <option key={minute} value={minute}>
+                    {minute}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {quickTrainTimes.map((clock) => {
+                const selected = trainClock === clock;
+
+                return (
+                  <button
+                    aria-pressed={selected}
+                    className="ob-pill ob-tap h-10 border-2 text-[15px] font-bold"
+                    key={clock}
+                    onClick={() => updateTrainClock(clock)}
+                    style={{
+                      background: selected ? obColors.mint : "#FFFFFF",
+                      borderColor: selected
+                        ? obColors.greenDeep
+                        : obColors.inkSoft,
+                      color: selected ? obColors.text : obColors.text2,
+                    }}
+                    type="button"
+                  >
+                    {clock}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         <div className="rounded-[18px] border-2 border-dashed border-[var(--ob-ink-soft)] bg-white px-4 py-3">
@@ -343,7 +425,7 @@ export function SearchForm() {
             </span>
           </div>
           <p className="mt-1 text-[14px] font-bold text-[var(--ob-text2)]">
-            {input.arrival}까지 역에 도착하는 기준입니다.
+            {stationArrivalClock}까지 역에 도착하는 기준입니다.
           </p>
         </div>
 

@@ -22,6 +22,6 @@
 
 ## Verification
 
-- Use `npm run lint`, `npm run typecheck`, and `npm run build` for normal code changes.
+- Use `npm run lint`, `npm run test:planner`, `npm run typecheck`, and `npm run build` for normal code changes that touch planner behavior, input semantics, or displayed transit decisions.
 - Use `npm run check:harness` before completing broad changes or harness/documentation changes.
 - For visible UI behavior, verify the page through `npm run dev` and a browser when practical.

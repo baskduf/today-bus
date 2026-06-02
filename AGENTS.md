@@ -34,6 +34,7 @@ Run the smallest relevant set for the change, and run the full harness check bef
 
 ```bash
 npm run lint
+npm run test:planner
 npm run typecheck
 npm run build
 npm run check:harness

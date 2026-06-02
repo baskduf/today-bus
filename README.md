@@ -1,57 +1,112 @@
-# 구미역 기차 언제 타지?
+# today-bus
 
-Gumi Station train departure helper built with Next.js App Router. Users enter a
-train departure time and starting place; the app keeps Gumi Station fixed as the
-destination and recommends when to leave and which demo bus plan to follow.
+`today-bus` is a small Next.js app used to dogfood repository-level harness
+engineering for coding agents.
 
-## Getting Started
+The product is `구미역 기차 언제 타지?`: users enter a train departure time and a
+starting place, and the app recommends when to leave for Gumi Station.
 
-Install dependencies and run the development server:
+The dogfood goal is stricter than shipping the UI. Meaningful agent changes
+should leave a verifiable trail through local checks, focused planner tests,
+decision memory, and failure memory when needed.
+
+## Dogfood Goal
+
+This repository checks whether the harness catches real agent-work risks:
+
+- implementation diffs that may need decision memory
+- planner regressions across TAGO, Gumi BIS timetable, and mock fallback paths
+- drift from the Next.js App Router, npm workflow, and shared UI components
+- missing failure records for runtime, provider, or cross-environment bugs
+- unsafe external API handling such as secret leakage or live/mock confusion
+
+## Current Harness
+
+The local harness is intentionally small and repo-specific:
+
+- `AGENTS.md` is the source of truth for agent instructions and completion
+  criteria.
+- `docs/decisions/` records durable product, API, state, and harness decisions.
+- `docs/failures/` records failures future agents should not repeat.
+- `docs/checklists/` holds focused checklists for external API work, decision
+  memory, failure memory, and verification scripts.
+- `scripts/check-harness.mjs` checks structure, docs links, package-manager
+  drift, scratch files, design-system paths, and decision-memory warnings.
+
+Known gaps:
+
+- no CI is configured yet
+- browser smoke verification is manual
+- `docs/effectiveness/` measurement records have not started yet
+- live API diagnostics are intentionally outside the default harness gate
+
+## Local Dogfood Loop
+
+Install dependencies and run the app:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `src/app/page.tsx`. The page auto-updates as you edit the file.
+Run the full local harness gate before finishing broad work:
 
-## Local Checks
+```bash
+npm run check:harness
+```
+
+`check:harness` currently runs:
 
 ```bash
 npm run lint
 npm run test:planner
 npm run typecheck
 npm run build
-npm run check:harness
+node scripts/check-harness.mjs
 ```
 
-`npm run check:harness` runs the local harness verification path for this repository: lint, TypeScript, production build, lightweight docs/structure drift checks, and a non-failing decision-memory warning for implementation diffs that may need an ADR.
+Use `npm run test:planner` directly for quick deterministic checks of planner
+branch behavior.
 
-`npm run test:planner` runs the focused source-branch checks for TAGO, Gumi BIS timetable, and mock planner fallback behavior.
+## Decision Warnings
 
-Live/public-data diagnostics such as `node scripts/check-tago-backend.mjs` and `node scripts/check-gumi-bis-offset.mjs` are kept outside `check:harness` because they depend on external providers, credentials, network behavior, or public endpoint stability.
+`check:harness` may print a decision-memory warning when implementation-facing
+paths changed without a `docs/decisions/` change.
 
-## Harness Notes
+Do not treat that warning as noise. Before finishing the task, do one of these:
 
-This repository uses prompt-first harness engineering guidance in `AGENTS.md` and `docs/`. The local `harness-starter-kit/` directory is a read-only reference clone and is ignored by Git. Do not commit it unless the repository intentionally converts it into a tracked reference or submodule.
+- add or update a decision record
+- cite the existing ADR that covers the change
+- explain why no decision memory is needed
 
-External API and custom verification work should follow the checklists in `docs/checklists/`.
+The warning is non-failing by design. It surfaces judgment that still needs a
+human-readable resolution.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## External API Dogfood
 
-## Learn More
+Planner behavior uses deterministic tests by default. Live/public-data checks
+stay separate because they depend on credentials, provider state, network
+behavior, or public endpoint stability.
 
-To learn more about Next.js, take a look at the following resources:
+Focused diagnostics:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+node scripts/check-tago-backend.mjs
+node scripts/check-gumi-bis-offset.mjs
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Use `docs/checklists/external-api-work.md` before changing TAGO, Gumi BIS, or
+any public-data boundary. Reports must name live/mock mode, redaction behavior,
+empty-result handling, provider-error handling, and the smoke command used or
+intentionally skipped.
 
-## Deploy on Vercel
+## Key Paths
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- App source: `src/app/`
+- Shared UI: `src/components/`
+- Planner logic: `src/lib/today-bus/`
+- Transit providers: `src/lib/tago/`, `src/lib/gumi-bis/`, `src/lib/transit/`
+- Local tests: `tests/`
+- Harness docs: `docs/harness/`

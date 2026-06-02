@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { SketchCard } from "@/components/ui/sketch-card";
 import {
   createTripHref,
+  formatClockOnly,
   planStatusMeta,
   type TripSearchParams,
 } from "@/lib/today-bus/mock-plans";
@@ -16,6 +17,10 @@ import { obColors } from "@/lib/design/tokens";
 type RecommendedPageProps = {
   searchParams: Promise<TripSearchParams>;
 };
+
+function displayClock(value: string) {
+  return formatClockOnly(value) ?? value.replace(/^오늘\s+/, "");
+}
 
 export default async function RecommendedPlanPage({
   searchParams,
@@ -44,6 +49,8 @@ export default async function RecommendedPlanPage({
   const riskBody = recommendedPlan.missedDelayMinutes
     ? recommendedPlan.statusLine
     : recommendedPlan.statusNote;
+  const trainDepartureClock = displayClock(train.departureTime);
+  const stationArrivalClock = displayClock(train.stationArrivalDeadline);
 
   return (
     <main className="min-h-screen bg-[var(--ob-bg)] px-4 py-6 text-[var(--ob-text)] sm:px-6">
@@ -63,18 +70,22 @@ export default async function RecommendedPlanPage({
         <section className="flex flex-col gap-2 pt-3">
           <p className="text-[17px] font-bold text-[var(--ob-text2)]">
             {itinerary.originPlace.label}에서 {itinerary.boardingStop.name}{" "}
-            정류장까지 먼저 이동 · {train.departureTime} 구미역 기차
+            정류장까지 먼저 이동 · {trainDepartureClock} 구미역 기차
           </p>
           <h1 className="text-[43px] font-black leading-[1.04] text-[var(--ob-text)] sm:text-[58px]">
             {recommendedPlan.departureTime}에 출발하면 됩니다
           </h1>
+          <p className="text-[20px] font-black text-[var(--ob-green-deep)]">
+            {trainDepartureClock} 기차 · {stationArrivalClock}까지 구미역 도착 ·{" "}
+            {recommendedPlan.departureTime} 출발
+          </p>
           <p className={summaryClassName}>{recommendedPlan.summaryLine}</p>
           <p className="text-[17px] font-bold text-[var(--ob-text2)]">
             {itinerary.route.routeNo}번 {itinerary.route.directionLabel} 탑승 ·{" "}
             {itinerary.alightingStop.name} 하차 후{" "}
             {itinerary.destinationPlace.label}까지 도보{" "}
             {itinerary.destinationPlace.walkMinutesFromAlightingStop}분 ·{" "}
-            {train.stationArrivalDeadline}까지 역 도착 기준
+            {stationArrivalClock}까지 역 도착 기준
           </p>
         </section>
 

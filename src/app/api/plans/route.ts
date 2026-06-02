@@ -6,6 +6,7 @@ import {
 import { getSafeTagoErrorMessage } from "@/lib/tago/client";
 import {
   createStationArrivalTime,
+  normalizeTrainDepartureTime,
   tripDefaults,
   type TripInput,
 } from "@/lib/today-bus/mock-plans";
@@ -26,9 +27,11 @@ type PlanRequestBody = {
 };
 
 function normalizeBody(body: PlanRequestBody): TripInput {
-  const explicitTrainDeparture = body.trainDeparture ?? body.trainDepartureTime;
+  const rawTrainDeparture = body.trainDeparture ?? body.trainDepartureTime;
   const trainDeparture =
-    explicitTrainDeparture ?? tripDefaults.trainDeparture;
+    normalizeTrainDepartureTime(rawTrainDeparture) ??
+    rawTrainDeparture ??
+    tripDefaults.trainDeparture;
   const buffer =
     typeof body.stationBufferMinutes === "number"
       ? String(body.stationBufferMinutes)
@@ -38,8 +41,8 @@ function normalizeBody(body: PlanRequestBody): TripInput {
 
   return {
     arrival:
-      (explicitTrainDeparture
-        ? createStationArrivalTime(explicitTrainDeparture, buffer)
+      (rawTrainDeparture
+        ? createStationArrivalTime(trainDeparture, buffer)
         : undefined) ??
       body.arrival ??
       body.desiredArrivalTime ??

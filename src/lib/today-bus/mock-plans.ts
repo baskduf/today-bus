@@ -237,6 +237,21 @@ function parseTodayClock(value: string | undefined) {
   return hour * 60 + minute;
 }
 
+function parseClockInput(value: string | undefined) {
+  return parseTodayClock(value) ?? parseClockOnly(value);
+}
+
+function parseClockOnly(value: string | undefined) {
+  const match = value?.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return undefined;
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return undefined;
+
+  return hour * 60 + minute;
+}
+
 function formatTodayClock(totalMinutes: number) {
   const normalized = ((totalMinutes % 1440) + 1440) % 1440;
   const hour = Math.floor(normalized / 60);
@@ -245,11 +260,26 @@ function formatTodayClock(totalMinutes: number) {
   return `오늘 ${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
+export function formatClockOnly(value: string | undefined) {
+  const minutes = parseClockInput(value);
+  if (minutes === undefined) return undefined;
+
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+export function normalizeTrainDepartureTime(value: string | undefined) {
+  const minutes = parseClockInput(value);
+  return minutes === undefined ? undefined : formatTodayClock(minutes);
+}
+
 export function createStationArrivalTime(
   trainDeparture: string,
   buffer: string,
 ) {
-  const departureMinutes = parseTodayClock(trainDeparture);
+  const departureMinutes = parseClockInput(trainDeparture);
   const bufferMinutes = Number(buffer);
 
   if (
@@ -266,8 +296,10 @@ export function createStationArrivalTime(
 
 export function resolveTripInput(params: TripSearchParams = {}): TripInput {
   const originSource = parseOriginSource(firstValue(params.originSource));
-  const trainDeparture =
+  const rawTrainDeparture =
     firstValue(params.trainDeparture) ?? tripDefaults.trainDeparture;
+  const trainDeparture =
+    normalizeTrainDepartureTime(rawTrainDeparture) ?? rawTrainDeparture;
   const buffer = firstValue(params.buffer) ?? tripDefaults.buffer;
 
   return {

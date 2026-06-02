@@ -19,6 +19,11 @@ const {
   createTodayBusPlanResponseWithDependencies,
   getEstimatedOriginOffsetMinutes,
 } = jiti(path.join(projectRoot, "src/lib/today-bus/planner.ts"));
+const {
+  createStationArrivalTime,
+  normalizeTrainDepartureTime,
+  resolveTripInput,
+} = jiti(path.join(projectRoot, "src/lib/today-bus/mock-plans.ts"));
 
 const fixedNow = new Date("2026-06-02T06:20:00.000Z");
 const demoInput = {
@@ -78,6 +83,19 @@ function createDependencies({
 
 test("planner offset remains five minutes for the demo route", () => {
   assert.equal(getEstimatedOriginOffsetMinutes(), 5);
+});
+
+test("normalizes clock-only train departure input to today's train time", () => {
+  const input = resolveTripInput({
+    buffer: "10",
+    origin: "진평동",
+    trainDeparture: "18:10",
+  });
+
+  assert.equal(normalizeTrainDepartureTime("18:10"), "오늘 18:10");
+  assert.equal(createStationArrivalTime("18:10", "10"), "오늘 18:00");
+  assert.equal(input.trainDeparture, "오늘 18:10");
+  assert.equal(input.arrival, "오늘 18:00");
 });
 
 test("returns a place-to-stop itinerary for the demo route", async () => {
