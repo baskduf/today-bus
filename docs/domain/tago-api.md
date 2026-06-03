@@ -235,9 +235,10 @@ falls back to the existing fixed demo boarding stop `진평중학교입구건너
 The destination is fixed to `구미역`. `trainDeparture` is the preferred time
 input and is normalized to the next future `오늘 HH:mm` or `내일 HH:mm` value.
 The planner derives the internal station-arrival deadline as `trainDeparture -
-stationBufferMinutes`. Existing callers may still send `arrival` or
-`desiredArrivalTime`; those are treated as the already-derived Gumi Station
-arrival deadline.
+stationBufferMinutes`. When `trainDeparture` is present, that derived deadline
+takes precedence over stale `arrival` query state. Existing callers may still
+send `arrival` or `desiredArrivalTime` when they omit `trainDeparture`; those
+are treated as the already-derived Gumi Station arrival deadline.
 
 Response shape should stay close to `src/lib/today-bus/mock-plans.ts` so the
 current UI can switch from mock data to backend data with minimal churn.

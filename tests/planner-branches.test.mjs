@@ -129,6 +129,21 @@ test("rolls past train departure input to tomorrow", () => {
   assert.equal(input.arrival, "내일 14:00");
 });
 
+test("recomputes stale arrival query when train departure is present", () => {
+  const input = resolveTripInput(
+    {
+      arrival: "오늘 14:00",
+      buffer: "10",
+      origin: "진평동",
+      trainDeparture: "14:10",
+    },
+    fixedNow,
+  );
+
+  assert.equal(input.trainDeparture, "내일 14:10");
+  assert.equal(input.arrival, "내일 14:00");
+});
+
 test("returns a place-to-stop itinerary for the demo route", async () => {
   const { dependencies } = createDependencies({
     arrivals: [createArrival(120)],

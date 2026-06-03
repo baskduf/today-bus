@@ -34,6 +34,10 @@ If the current KST time has already passed `14:10`, `14:10` becomes:
 - `trainDeparture`: `내일 14:10`
 - `arrival`: `내일 14:00`
 
+When URL or API input includes `trainDeparture`, the derived `arrival` takes
+precedence over any stale `arrival` query value. Existing arrival-only callers
+can still send `arrival` when they omit `trainDeparture`.
+
 Display train and station-arrival times as compact clock values in user-facing
 summary text, preserving the `내일` label when the next-day rollover is used.
 
@@ -41,9 +45,12 @@ summary text, preserving the `내일` label when the next-day rollover is used.
 
 - The planner continues to support the existing `오늘 HH:mm` format and now also
   supports the next-day `내일 HH:mm` rollover.
+- Stale URL state cannot keep `arrival=오늘 ...` after `trainDeparture` rolls to
+  `내일 ...`.
 - The app still does not support train timetable lookup or planning more than
   one day ahead.
-- `npm run test:planner` covers clock-only normalization and the existing TAGO,
-  Gumi BIS timetable, and mock fallback branches.
+- `npm run test:planner` covers clock-only normalization, stale arrival
+  recomputation, and the existing TAGO, Gumi BIS timetable, and mock fallback
+  branches.
 - `npm run check:harness` now includes `npm run test:planner` so this input
   semantics check is part of the default local harness gate.

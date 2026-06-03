@@ -339,16 +339,18 @@ export function resolveTripInput(
   now = new Date(),
 ): TripInput {
   const originSource = parseOriginSource(firstValue(params.originSource));
+  const queryTrainDeparture = firstValue(params.trainDeparture);
   const rawTrainDeparture =
-    firstValue(params.trainDeparture) ?? tripDefaults.trainDeparture;
+    queryTrainDeparture ?? tripDefaults.trainDeparture;
   const trainDeparture =
     normalizeTrainDepartureTime(rawTrainDeparture, now) ?? rawTrainDeparture;
   const buffer = firstValue(params.buffer) ?? tripDefaults.buffer;
+  const derivedArrival = createStationArrivalTime(trainDeparture, buffer);
 
   return {
     arrival:
-      firstValue(params.arrival) ??
-      createStationArrivalTime(trainDeparture, buffer) ??
+      (queryTrainDeparture ? derivedArrival : firstValue(params.arrival)) ??
+      derivedArrival ??
       tripDefaults.arrival,
     buffer,
     origin: firstValue(params.origin) ?? tripDefaults.origin,
