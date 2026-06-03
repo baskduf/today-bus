@@ -6,6 +6,7 @@ Recorded failures:
 - `0002-server-timezone-live-planning.md`
 - `0003-gumi-bis-node-tls-chain.md`
 - `0004-tago-stop-route-parameter-rate-limit.md`
+- `0005-next-dev-validator-typecheck-artifact.md`
 
 Add a dated Markdown record in this directory when a failure should not recur. Include:
 

@@ -12,7 +12,8 @@
 
 - Use the configured `@/*` alias for imports from `src/` when it improves clarity.
 - Keep `strict` TypeScript behavior intact.
-- Run `npm run typecheck` after TypeScript changes.
+- Keep `npm run typecheck` running `next typegen` before `tsc`, so ignored Next-generated type files are refreshed before TypeScript reads them.
+- Run `npm run typecheck` after TypeScript changes, and do not patch `.next/` or `next-env.d.ts` manually.
 
 ## Styling
 
