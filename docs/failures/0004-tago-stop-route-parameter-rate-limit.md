@@ -46,7 +46,8 @@ For coordinate-based route search:
 - use `nodeid` for `/getSttnThrghRouteList`;
 - keep route-stop lookups deduplicated by `routeid`;
 - limit concurrent route lookups;
-- skip a failed route candidate instead of failing the whole coordinate search;
+- skip a failed stop or route candidate instead of failing the whole coordinate
+  search;
 - keep provider/debug warnings in the API response but do not render them as
   primary user-facing copy.
 

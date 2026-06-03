@@ -282,10 +282,19 @@ export async function getDirectRouteCandidates(
   ).slice(0, input.maxNearbyStops ?? defaultMaxNearbyStops);
   const routeStopsByRouteId = new Map<string, Promise<TagoRouteStop[]>>();
   const routesByStop = await Promise.all(
-    nearbyStops.map(async (stop) => ({
-      routes: dedupeRoutes(await provider.getStopRoutes(cityCode, stop.nodeid)),
-      stop,
-    })),
+    nearbyStops.map(async (stop) => {
+      try {
+        return {
+          routes: dedupeRoutes(await provider.getStopRoutes(cityCode, stop.nodeid)),
+          stop,
+        };
+      } catch {
+        return {
+          routes: [],
+          stop,
+        };
+      }
+    }),
   );
   const routeCandidateCount = routesByStop.reduce(
     (count, entry) => count + entry.routes.length,
