@@ -19,7 +19,10 @@ type RecommendedPageProps = {
 };
 
 function displayClock(value: string) {
-  return formatClockOnly(value) ?? value.replace(/^오늘\s+/, "");
+  const clock = formatClockOnly(value);
+  if (!clock) return value.replace(/^(오늘|내일)\s+/, "");
+
+  return value.startsWith("내일") ? `내일 ${clock}` : clock;
 }
 
 export default async function RecommendedPlanPage({
@@ -108,21 +111,6 @@ export default async function RecommendedPlanPage({
             </div>
           </div>
         </SketchCard>
-
-        {planResponse.warnings.length > 0 ? (
-          <SketchCard accent={obColors.yellow} bg="#FFF9E8" pad={16} radius="r2">
-            <div className="flex flex-col gap-1">
-              {planResponse.warnings.map((warning) => (
-                <p
-                  className="text-[16px] font-bold text-[var(--ob-text)]"
-                  key={warning}
-                >
-                  {warning}
-                </p>
-              ))}
-            </div>
-          </SketchCard>
-        ) : null}
 
         <section className="flex flex-col gap-3">
           <div className="flex items-center gap-2">

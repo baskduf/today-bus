@@ -1,15 +1,10 @@
 import Link from "next/link";
-import {
-  IconArrow,
-  IconBusBig,
-  IconWarn,
-} from "@/components/icons/doodle-icons";
+import { IconArrow, IconBus, IconWarn } from "@/components/icons/doodle-icons";
 import { PlanCard } from "@/components/today-bus/plan-card";
-import { StatusDecisionGuide } from "@/components/today-bus/status-decision-guide";
+import { TimelineStep } from "@/components/today-bus/timeline-step";
 import { Badge } from "@/components/ui/badge";
 import { SketchCard } from "@/components/ui/sketch-card";
 import {
-  formatClockOnly,
   resolveMissedPlanId,
   type TripSearchParams,
 } from "@/lib/today-bus/mock-plans";
@@ -35,23 +30,15 @@ const sourceBadgeMeta = {
   },
 } as const;
 
-function displayClock(value: string) {
-  return formatClockOnly(value) ?? value.replace(/^오늘\s+/, "");
-}
-
 export default async function PlansPage({ searchParams }: PlansPageProps) {
   const params = await searchParams;
   const planResponse = await createTodayBusPlanResponseFromParams(params);
   const tripInput = planResponse.effectiveInput;
   const { itinerary } = planResponse;
   const { recoveryPlan, recommendedPlan } = planResponse;
-  const { train } = planResponse;
   const missedPlanId = resolveMissedPlanId(params);
   const isMissedFlow = missedPlanId === recommendedPlan.id;
-  const alternativePlans = planResponse.plans.filter((plan) => !plan.primary);
   const sourceBadge = sourceBadgeMeta[planResponse.source];
-  const trainDepartureClock = displayClock(train.departureTime);
-  const stationArrivalClock = displayClock(train.stationArrivalDeadline);
 
   return (
     <main className="min-h-screen bg-[var(--ob-bg)] px-4 py-6 text-[var(--ob-text)] sm:px-6">
@@ -68,47 +55,6 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
           <Badge tone={sourceBadge.tone}>{sourceBadge.label}</Badge>
         </header>
 
-        <section className="flex flex-col gap-3 pt-2">
-          <div className="flex items-center gap-3">
-            <IconBusBig size={58} stroke={obColors.ink} />
-            <div>
-              <p className="text-[16px] font-bold text-[var(--ob-text2)]">
-                {itinerary.originPlace.label} →{" "}
-                {itinerary.boardingStop.name} 정류장 →{" "}
-                {train.destinationStation} · {trainDepartureClock} 기차
-              </p>
-              <h1 className="text-[28px] font-black leading-tight text-[var(--ob-text)]">
-                기차 시간에 맞춰 나갈 시간을 골라보세요
-              </h1>
-            </div>
-          </div>
-          <p className="text-[17px] font-bold text-[var(--ob-text2)]">
-            {itinerary.boardingStop.name}에서 {itinerary.route.routeNo}번{" "}
-            {itinerary.route.directionLabel} 탑승,{" "}
-            {itinerary.alightingStop.name} 하차 · {stationArrivalClock}
-            까지 구미역 도착 기준입니다.
-          </p>
-          <p className="text-[18px] font-black text-[var(--ob-green-deep)]">
-            {trainDepartureClock} 기차 · {stationArrivalClock}까지 구미역 도착 ·{" "}
-            추천 {recommendedPlan.departureTime} 출발
-          </p>
-        </section>
-
-        {planResponse.warnings.length > 0 ? (
-          <SketchCard accent={obColors.yellow} bg="#FFF9E8" pad={16} radius="r2">
-            <div className="flex flex-col gap-1">
-              {planResponse.warnings.map((warning) => (
-                <p
-                  className="text-[16px] font-bold text-[var(--ob-text)]"
-                  key={warning}
-                >
-                  {warning}
-                </p>
-              ))}
-            </div>
-          </SketchCard>
-        ) : null}
-
         {isMissedFlow ? (
           <SketchCard accent={obColors.coral} bg="#FFF7F2" pad={18} radius="r2">
             <div className="flex gap-3">
@@ -117,13 +63,13 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
               </div>
               <div>
                 <p className="text-[16px] font-bold text-[var(--ob-text2)]">
-                  180번을 놓쳤다면
+                  {recommendedPlan.busNumber} 놓쳤다면
                 </p>
                 <h2 className="text-[25px] font-black text-[var(--ob-coral-deep)]">
-                  다음은 {recoveryPlan.boardingTime}에 타는 플랜이에요
+                  {recoveryPlan.boardingTime} 탑승
                 </h2>
                 <p className="mt-1 text-[17px] font-bold text-[var(--ob-text)]">
-                  {recoveryPlan.arrivalTime} 도착 · {recoveryPlan.statusNote}
+                  {recoveryPlan.arrivalTime} 도착
                 </p>
               </div>
             </div>
@@ -136,34 +82,25 @@ export default async function PlansPage({ searchParams }: PlansPageProps) {
           tripInput={tripInput}
         />
 
-        <section className="flex flex-col gap-3">
-          <div>
-            <p className="text-[16px] font-bold text-[var(--ob-text2)]">
-              대안 플랜
-            </p>
-            <h2 className="text-[23px] font-black text-[var(--ob-text)]">
-              놓쳤거나 너무 이르면 아래 플랜을 비교하세요
-            </h2>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {alternativePlans.map((plan) => (
-              <PlanCard
-                anchorId={plan.id}
-                emphasis={
-                  isMissedFlow && plan.id === recoveryPlan.id
-                    ? "recovery"
-                    : undefined
-                }
-                key={plan.id}
-                itinerary={itinerary}
-                plan={plan}
-                tripInput={tripInput}
-              />
-            ))}
-          </div>
-        </section>
-
-        <StatusDecisionGuide />
+        {recommendedPlan.timeline.length > 0 ? (
+          <section className="flex flex-col gap-3" aria-label="타임라인">
+            <div className="flex items-center gap-2">
+              <IconBus size={30} stroke={obColors.ink} />
+              <h2 className="text-[25px] font-black text-[var(--ob-text)]">
+                타임라인
+              </h2>
+            </div>
+            <div className="flex flex-col gap-3">
+              {recommendedPlan.timeline.map((step, index) => (
+                <TimelineStep
+                  isLast={index === recommendedPlan.timeline.length - 1}
+                  key={`${step.time}-${step.label}`}
+                  step={step}
+                />
+              ))}
+            </div>
+          </section>
+        ) : null}
       </div>
     </main>
   );
