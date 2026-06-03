@@ -6,9 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   IconClock,
   IconPin,
-  IconSpark,
 } from "@/components/icons/doodle-icons";
-import { SketchButton } from "@/components/ui/sketch-button";
 import { SketchCard } from "@/components/ui/sketch-card";
 import { obColors } from "@/lib/design/tokens";
 import {
@@ -454,23 +452,16 @@ export function SearchForm() {
           </div>
         </div>
 
-        <SketchButton
-          big
+        <button
+          className="ob-modern-cta"
           disabled={!canSubmit}
-          style={
-            canSubmit
-              ? undefined
-              : {
-                  boxShadow: "none",
-                  cursor: "not-allowed",
-                  opacity: 0.45,
-                }
-          }
           type="submit"
         >
-          <IconSpark size={25} stroke="#1d3a29" />
-          계산하기
-        </SketchButton>
+          <span>계산하기</span>
+          <span aria-hidden="true" className="ob-modern-cta__icon">
+            &gt;
+          </span>
+        </button>
       </form>
     </SketchCard>
   );

@@ -111,6 +111,65 @@ textarea {
   transform: scale(0.97);
 }
 
+.ob-modern-cta {
+  align-items: center;
+  appearance: none;
+  background: #111111;
+  border: 1.5px solid #111111;
+  border-radius: 20px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  font-family: var(--font-ob-hand);
+  font-size: 24px;
+  font-weight: 700;
+  gap: 14px;
+  justify-content: space-between;
+  min-height: 62px;
+  padding: 12px 14px 12px 22px;
+  transition: transform 0.16s ease, box-shadow 0.16s ease,
+    background 0.16s ease;
+  width: 100%;
+  word-break: keep-all;
+}
+
+.ob-modern-cta:active {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transform: translateY(1px) scale(0.99);
+}
+
+.ob-modern-cta:disabled {
+  background: #f5f5f5;
+  border-color: #d8d8d8;
+  box-shadow: none;
+  color: #777777;
+  cursor: not-allowed;
+}
+
+.ob-modern-cta__icon {
+  align-items: center;
+  background: #ffffff;
+  border-radius: 999px;
+  color: #111111;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-family: system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  height: 38px;
+  justify-content: center;
+  line-height: 1;
+  width: 38px;
+}
+
+.ob-modern-cta:disabled .ob-modern-cta__icon {
+  border: 1px solid #d8d8d8;
+  color: #777777;
+}
+
 @keyframes ob-float {
   0%,
   100% {
