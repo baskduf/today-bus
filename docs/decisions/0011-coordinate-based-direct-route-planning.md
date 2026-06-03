@@ -49,7 +49,7 @@ diagnostics can distinguish:
 - A selected Kakao place can now change the boarding stop and route when a
   direct Gumi Station route is found.
 - The app still does not support arbitrary destinations, transfers, train
-  timetable lookup, more-than-next-day train departures, or full route ranking.
+  timetable lookup, or full route ranking.
 - Dynamic planning needs deterministic fixture tests because live TAGO and Gumi
   BIS state are not stable enough for the default harness gate.
 - The route-start timetable offset remains an estimate based on stop order and

@@ -227,36 +227,140 @@ function parseOriginSource(value: string | undefined) {
 }
 
 const minutesPerDay = 24 * 60;
+const kstOffsetHours = 9;
 const seoulTimeZone = "Asia/Seoul";
+
+type AbsoluteClock = {
+  day: number;
+  minutes: number;
+  month: number;
+  year: number;
+};
 
 type RelativeClock = {
   dayOffset: 0 | 1;
   minutes: number;
 };
 
+function formatTwoDigits(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function isValidDateParts({
+  day,
+  month,
+  year,
+}: {
+  day: number;
+  month: number;
+  year: number;
+}) {
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+function parseClockParts(hourText: string, minuteText: string) {
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return undefined;
+
+  return {
+    hour,
+    minute,
+    minutes: hour * 60 + minute,
+  };
+}
+
+function parseAbsoluteClock(
+  value: string | undefined,
+): AbsoluteClock | undefined {
+  const match = value?.match(
+    /^(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})$/,
+  );
+  if (!match) return undefined;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const clock = parseClockParts(match[4], match[5]);
+
+  if (!clock || !isValidDateParts({ day, month, year })) return undefined;
+
+  return {
+    day,
+    minutes: clock.minutes,
+    month,
+    year,
+  };
+}
+
 function parseRelativeClock(value: string | undefined): RelativeClock | undefined {
   const datedMatch = value?.match(/^(오늘|내일)\s+(\d{1,2}):(\d{2})$/);
   if (datedMatch) {
-    const hour = Number(datedMatch[2]);
-    const minute = Number(datedMatch[3]);
-    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return undefined;
+    const clock = parseClockParts(datedMatch[2], datedMatch[3]);
+    if (!clock) return undefined;
 
     return {
       dayOffset: datedMatch[1] === "내일" ? 1 : 0,
-      minutes: hour * 60 + minute,
+      minutes: clock.minutes,
     };
   }
 
   const match = value?.match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return undefined;
 
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
-  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return undefined;
+  const clock = parseClockParts(match[1], match[2]);
+  if (!clock) return undefined;
 
   return {
     dayOffset: 0,
-    minutes: hour * 60 + minute,
+    minutes: clock.minutes,
+  };
+}
+
+function getKstDateParts(now: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: seoulTimeZone,
+    year: "numeric",
+  }).formatToParts(now);
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
+
+  return {
+    day: Number(values.day),
+    month: Number(values.month),
+    year: Number(values.year),
+  };
+}
+
+function getKstDateTimeParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+    minute: "2-digit",
+    month: "2-digit",
+    timeZone: seoulTimeZone,
+    year: "numeric",
+  }).formatToParts(date);
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
+
+  return {
+    day: Number(values.day),
+    hour: Number(values.hour) % 24,
+    minute: Number(values.minute),
+    month: Number(values.month),
+    year: Number(values.year),
   };
 }
 
@@ -274,34 +378,116 @@ function getKstMinutesOfDay(now: Date) {
   return (Number(values.hour) % 24) * 60 + Number(values.minute);
 }
 
+function createKstDateFromAbsoluteClock(clock: AbsoluteClock) {
+  const hour = Math.floor(clock.minutes / 60);
+  const minute = clock.minutes % 60;
+
+  return new Date(
+    Date.UTC(
+      clock.year,
+      clock.month - 1,
+      clock.day,
+      hour - kstOffsetHours,
+      minute,
+      0,
+      0,
+    ),
+  );
+}
+
 function getRelativeTotalMinutes(clock: RelativeClock) {
   return clock.dayOffset * minutesPerDay + clock.minutes;
+}
+
+function formatDateParts({
+  day,
+  month,
+  year,
+}: {
+  day: number;
+  month: number;
+  year: number;
+}) {
+  return `${year}-${formatTwoDigits(month)}-${formatTwoDigits(day)}`;
+}
+
+function formatClockMinutes(minutes: number) {
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+
+  return `${formatTwoDigits(hour)}:${formatTwoDigits(minute)}`;
+}
+
+function formatAbsoluteClock(clock: AbsoluteClock) {
+  return `${formatDateParts(clock)} ${formatClockMinutes(clock.minutes)}`;
+}
+
+function formatAbsoluteClockFromDate(date: Date) {
+  const parts = getKstDateTimeParts(date);
+
+  return `${formatDateParts(parts)} ${formatTwoDigits(parts.hour)}:${formatTwoDigits(parts.minute)}`;
 }
 
 function formatRelativeClock(totalMinutes: number) {
   const dayOffset = totalMinutes >= minutesPerDay ? 1 : 0;
   const normalized = ((totalMinutes % minutesPerDay) + minutesPerDay) % minutesPerDay;
-  const hour = Math.floor(normalized / 60);
-  const minute = normalized % 60;
   const dayLabel = dayOffset === 1 ? "내일" : "오늘";
 
-  return `${dayLabel} ${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  return `${dayLabel} ${formatClockMinutes(normalized)}`;
 }
 
 export function formatClockOnly(value: string | undefined) {
+  const absolute = parseAbsoluteClock(value);
+  if (absolute) return formatClockMinutes(absolute.minutes);
+
   const clock = parseRelativeClock(value);
   if (!clock) return undefined;
 
-  const hour = Math.floor(clock.minutes / 60);
-  const minute = clock.minutes % 60;
+  return formatClockMinutes(clock.minutes);
+}
 
-  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+export function formatDateOnly(value: string | undefined, now = new Date()) {
+  const absolute = parseAbsoluteClock(value);
+  if (absolute) return formatDateParts(absolute);
+
+  const relative = parseRelativeClock(value);
+  if (!relative) return undefined;
+
+  const today = getKstDateParts(now);
+  const date = new Date(
+    Date.UTC(today.year, today.month - 1, today.day + relative.dayOffset),
+  );
+
+  return formatDateParts({
+    day: date.getUTCDate(),
+    month: date.getUTCMonth() + 1,
+    year: date.getUTCFullYear(),
+  });
+}
+
+export function formatTripDateTime(value: string | undefined) {
+  const absolute = parseAbsoluteClock(value);
+  if (absolute) {
+    return `${formatDateParts(absolute)} ${formatClockMinutes(absolute.minutes)}`;
+  }
+
+  const clock = formatClockOnly(value);
+  if (!clock) return value?.replace(/^(오늘|내일)\s+/, "") ?? "";
+
+  return value?.startsWith("내일") ? `내일 ${clock}` : clock;
+}
+
+export function getTodayDateInputValue(now = new Date()) {
+  return formatDateParts(getKstDateParts(now));
 }
 
 export function normalizeTrainDepartureTime(
   value: string | undefined,
   now = new Date(),
 ) {
+  const absolute = parseAbsoluteClock(value);
+  if (absolute) return formatAbsoluteClock(absolute);
+
   const clock = parseRelativeClock(value);
   if (!clock) return undefined;
 
@@ -317,16 +503,28 @@ export function createStationArrivalTime(
   trainDeparture: string,
   buffer: string,
 ) {
+  const absoluteDeparture = parseAbsoluteClock(trainDeparture);
   const departure = parseRelativeClock(trainDeparture);
   const bufferMinutes = Number(buffer);
 
   if (
-    !departure ||
+    (!absoluteDeparture && !departure) ||
     !Number.isFinite(bufferMinutes) ||
     bufferMinutes < 0
   ) {
     return undefined;
   }
+
+  if (absoluteDeparture) {
+    return formatAbsoluteClockFromDate(
+      new Date(
+        createKstDateFromAbsoluteClock(absoluteDeparture).getTime() -
+          bufferMinutes * 60_000,
+      ),
+    );
+  }
+
+  if (!departure) return undefined;
 
   const arrivalTotalMinutes = getRelativeTotalMinutes(departure) - bufferMinutes;
   if (arrivalTotalMinutes < 0) return undefined;

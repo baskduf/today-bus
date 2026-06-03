@@ -271,13 +271,60 @@ function createKstDate({
   );
 }
 
-function parseStationArrival(input: TripInput, now = new Date()) {
-  const match = input.arrival.match(/^(오늘|내일)\s+(\d{1,2}):(\d{2})$/);
-  if (!match) return undefined;
+function isValidDateParts({
+  day,
+  month,
+  year,
+}: {
+  day: number;
+  month: number;
+  year: number;
+}) {
+  const date = new Date(Date.UTC(year, month - 1, day));
 
-  const dayOffset = match[1] === "내일" ? 1 : 0;
-  const hour = Number(match[2]);
-  const minute = Number(match[3]);
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+function parseStationArrival(input: TripInput, now = new Date()) {
+  const absoluteMatch = input.arrival.match(
+    /^(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})$/,
+  );
+  if (absoluteMatch) {
+    const year = Number(absoluteMatch[1]);
+    const month = Number(absoluteMatch[2]);
+    const day = Number(absoluteMatch[3]);
+    const hour = Number(absoluteMatch[4]);
+    const minute = Number(absoluteMatch[5]);
+
+    if (
+      hour < 0 ||
+      hour > 23 ||
+      minute < 0 ||
+      minute > 59 ||
+      !isValidDateParts({ day, month, year })
+    ) {
+      return undefined;
+    }
+
+    return createKstDate({
+      day,
+      hour,
+      minute,
+      month,
+      year,
+    });
+  }
+
+  const relativeMatch = input.arrival.match(/^(오늘|내일)\s+(\d{1,2}):(\d{2})$/);
+  if (!relativeMatch) return undefined;
+
+  const dayOffset = relativeMatch[1] === "내일" ? 1 : 0;
+  const hour = Number(relativeMatch[2]);
+  const minute = Number(relativeMatch[3]);
 
   if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return undefined;
 
@@ -986,7 +1033,7 @@ export async function createTodayBusPlanResponseWithDependencies(
   if (!desiredArrivalTime) {
     const fallback = {
       message:
-        "현재는 '오늘/내일 HH:mm' 형식의 기차 출발 시간만 해석합니다. mock 플랜을 보여줍니다.",
+        "현재는 'YYYY-MM-DD HH:mm' 또는 '오늘/내일 HH:mm' 형식의 기차 출발 시간만 해석합니다. mock 플랜을 보여줍니다.",
       reason: "future_planning_not_supported",
     } satisfies TodayBusFallback;
 

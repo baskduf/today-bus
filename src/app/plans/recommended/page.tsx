@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { SketchCard } from "@/components/ui/sketch-card";
 import {
   createTripHref,
-  formatClockOnly,
+  formatTripDateTime,
   planStatusMeta,
   type TripSearchParams,
 } from "@/lib/today-bus/mock-plans";
@@ -17,13 +17,6 @@ import { obColors } from "@/lib/design/tokens";
 type RecommendedPageProps = {
   searchParams: Promise<TripSearchParams>;
 };
-
-function displayClock(value: string) {
-  const clock = formatClockOnly(value);
-  if (!clock) return value.replace(/^(오늘|내일)\s+/, "");
-
-  return value.startsWith("내일") ? `내일 ${clock}` : clock;
-}
 
 export default async function RecommendedPlanPage({
   searchParams,
@@ -52,8 +45,8 @@ export default async function RecommendedPlanPage({
   const riskBody = recommendedPlan.missedDelayMinutes
     ? recommendedPlan.statusLine
     : recommendedPlan.statusNote;
-  const trainDepartureClock = displayClock(train.departureTime);
-  const stationArrivalClock = displayClock(train.stationArrivalDeadline);
+  const trainDepartureClock = formatTripDateTime(train.departureTime);
+  const stationArrivalClock = formatTripDateTime(train.stationArrivalDeadline);
 
   return (
     <main className="min-h-screen bg-[var(--ob-bg)] px-4 py-6 text-[var(--ob-text)] sm:px-6">

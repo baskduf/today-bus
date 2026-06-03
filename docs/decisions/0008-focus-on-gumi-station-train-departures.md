@@ -49,6 +49,11 @@ The existing demo route remains:
   boundaries stay intact.
 - URL state and `POST /api/plans` prefer `trainDeparture` but keep `arrival` as
   the internal station-arrival deadline for compatibility.
-- The app still does not support arbitrary destinations, train timetable lookup,
-  or train departures beyond the next-day rollover used to keep selected times
-  in the future.
+- The app still does not support arbitrary destinations or train timetable
+  lookup.
+
+## Update
+
+Decision 0015 extends `trainDeparture` to support explicit `YYYY-MM-DD HH:mm`
+values from a date input. Clock-only and `오늘/내일 HH:mm` inputs remain supported
+for compatibility.

@@ -144,6 +144,28 @@ test("recomputes stale arrival query when train departure is present", () => {
   assert.equal(input.arrival, "내일 14:00");
 });
 
+test("keeps explicit train departure dates and derives dated station arrival", () => {
+  const input = resolveTripInput(
+    {
+      buffer: "10",
+      origin: "진평동",
+      trainDeparture: "2026-06-05 18:10",
+    },
+    fixedNow,
+  );
+
+  assert.equal(
+    normalizeTrainDepartureTime("2026-06-05 18:10", fixedNow),
+    "2026-06-05 18:10",
+  );
+  assert.equal(
+    createStationArrivalTime("2026-06-05 18:10", "10"),
+    "2026-06-05 18:00",
+  );
+  assert.equal(input.trainDeparture, "2026-06-05 18:10");
+  assert.equal(input.arrival, "2026-06-05 18:00");
+});
+
 test("returns a place-to-stop itinerary for the demo route", async () => {
   const { dependencies } = createDependencies({
     arrivals: [createArrival(120)],
@@ -421,6 +443,26 @@ test("uses Gumi BIS timetable when TAGO has no live arrivals", async () => {
 
   assert.equal(response.source, "gumi_bis_timetable");
   assert.equal(response.tago?.arrivalCount, 0);
+  assert.equal(calls.getTimetable, 1);
+});
+
+test("uses Gumi BIS timetable for explicit train departure dates", async () => {
+  const { calls, dependencies } = createDependencies({
+    arrivals: [createArrival(120)],
+  });
+
+  const response = await createTodayBusPlanResponseWithDependencies(
+    {
+      ...demoInput,
+      arrival: "2026-06-05 18:00",
+      trainDeparture: "2026-06-05 18:10",
+    },
+    dependencies,
+  );
+
+  assert.equal(response.source, "gumi_bis_timetable");
+  assert.equal(response.train.departureTime, "2026-06-05 18:10");
+  assert.equal(response.train.stationArrivalDeadline, "2026-06-05 18:00");
   assert.equal(calls.getTimetable, 1);
 });
 

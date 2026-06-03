@@ -14,12 +14,16 @@ import { obColors } from "@/lib/design/tokens";
 import {
   createStationArrivalTime,
   createTripHref,
+  formatDateOnly,
   formatClockOnly,
+  getTodayDateInputValue,
   normalizeTrainDepartureTime,
   tripDefaults,
   type TripInput,
 } from "@/lib/today-bus/mock-plans";
 
+const dateInputClass =
+  "h-14 w-full rounded-[18px] border-2 border-[var(--ob-ink-soft)] bg-white px-3 text-center text-[23px] font-black text-[var(--ob-text)] outline-none transition focus:border-[var(--ob-text)]";
 const timeSelectClass =
   "h-14 w-full rounded-[18px] border-2 border-[var(--ob-ink-soft)] bg-white px-3 text-center text-[24px] font-black text-[var(--ob-text)] outline-none transition focus:border-[var(--ob-text)]";
 const kakaoMapAppKey = process.env.NEXT_PUBLIC_KAKAO_MAP_APP_KEY;
@@ -154,9 +158,18 @@ function loadKakaoServices() {
 }
 
 function createInitialTripInput() {
-  const trainDeparture =
+  const normalizedTrainDeparture =
     normalizeTrainDepartureTime(tripDefaults.trainDeparture) ??
     tripDefaults.trainDeparture;
+  const trainDate =
+    formatDateOnly(normalizedTrainDeparture) ?? getTodayDateInputValue();
+  const trainClock =
+    formatClockOnly(normalizedTrainDeparture) ??
+    formatClockOnly(tripDefaults.trainDeparture) ??
+    "14:10";
+  const trainDeparture =
+    normalizeTrainDepartureTime(`${trainDate} ${trainClock}`) ??
+    normalizedTrainDeparture;
 
   return {
     arrival:
@@ -181,8 +194,9 @@ export function SearchForm() {
     formatClockOnly(input.trainDeparture) ??
     formatClockOnly(tripDefaults.trainDeparture) ??
     "14:10";
+  const trainDate =
+    formatDateOnly(input.trainDeparture) ?? getTodayDateInputValue();
   const [selectedTrainHour, selectedTrainMinute] = trainClock.split(":");
-  const isTomorrowTrain = input.trainDeparture.startsWith("내일");
   const selectedCoordinate =
     input.originLat && input.originLng
       ? `${Number(input.originLat).toFixed(5)}, ${Number(input.originLng).toFixed(
@@ -207,7 +221,7 @@ export function SearchForm() {
   }
 
   function updateTrainClock(clock: string) {
-    const trainDeparture = normalizeTrainDepartureTime(clock);
+    const trainDeparture = normalizeTrainDepartureTime(`${trainDate} ${clock}`);
     if (!trainDeparture) return;
 
     setInput((current) =>
@@ -220,6 +234,15 @@ export function SearchForm() {
     const minute = part === "minute" ? value : selectedTrainMinute;
 
     updateTrainClock(`${hour}:${minute}`);
+  }
+
+  function updateTrainDate(date: string) {
+    const trainDeparture = normalizeTrainDepartureTime(`${date} ${trainClock}`);
+    if (!trainDeparture) return;
+
+    setInput((current) =>
+      withDerivedArrival({ ...current, trainDeparture }),
+    );
   }
 
   function updateOriginFromMap(lat: number, lng: number, address?: string) {
@@ -359,12 +382,15 @@ export function SearchForm() {
               <IconClock size={20} stroke={obColors.ink} />
               기차 시간
             </span>
-            {isTomorrowTrain ? (
-              <span className="rounded-full bg-[var(--ob-yellow)] px-3 py-1 text-[14px] font-black text-[var(--ob-text)]">
-                내일
-              </span>
-            ) : null}
           </div>
+          <input
+            aria-label="기차 출발 날짜"
+            className={dateInputClass}
+            min={getTodayDateInputValue()}
+            onChange={(event) => updateTrainDate(event.target.value)}
+            type="date"
+            value={trainDate}
+          />
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
             <select
               aria-label="기차 출발 시"

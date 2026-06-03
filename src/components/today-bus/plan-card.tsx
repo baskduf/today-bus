@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { SketchCard } from "@/components/ui/sketch-card";
 import { obColors } from "@/lib/design/tokens";
 import {
-  formatClockOnly,
+  formatTripDateTime,
   planStatusMeta,
   type BusPlan,
   type TripInput,
@@ -26,13 +26,6 @@ const statusAccents = {
   too_early: obColors.yellow,
 } as const;
 
-function displayClock(value: string) {
-  const clock = formatClockOnly(value);
-  if (!clock) return value.replace(/^(오늘|내일)\s+/, "");
-
-  return value.startsWith("내일") ? `내일 ${clock}` : clock;
-}
-
 export function PlanCard({
   anchorId,
   emphasis,
@@ -42,8 +35,8 @@ export function PlanCard({
 }: PlanCardProps) {
   const status = planStatusMeta[plan.status];
   const isRecovery = emphasis === "recovery";
-  const trainDepartureClock = displayClock(tripInput.trainDeparture);
-  const stationArrivalClock = displayClock(tripInput.arrival);
+  const trainDepartureClock = formatTripDateTime(tripInput.trainDeparture);
+  const stationArrivalClock = formatTripDateTime(tripInput.arrival);
 
   return (
     <SketchCard

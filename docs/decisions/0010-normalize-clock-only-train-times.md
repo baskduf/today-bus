@@ -47,8 +47,8 @@ summary text, preserving the `내일` label when the next-day rollover is used.
   supports the next-day `내일 HH:mm` rollover.
 - Stale URL state cannot keep `arrival=오늘 ...` after `trainDeparture` rolls to
   `내일 ...`.
-- The app still does not support train timetable lookup or planning more than
-  one day ahead.
+- Decision 0015 later adds explicit `YYYY-MM-DD HH:mm` date-time input. This
+  decision still covers clock-only compatibility and next-future normalization.
 - `npm run test:planner` covers clock-only normalization, stale arrival
   recomputation, and the existing TAGO, Gumi BIS timetable, and mock fallback
   branches.

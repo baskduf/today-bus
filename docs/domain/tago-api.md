@@ -232,8 +232,10 @@ coordinate-based direct route planning:
 If no direct candidate is found or provider lookup fails, the planner warns and
 falls back to the existing fixed demo boarding stop `진평중학교입구건너`.
 
-The destination is fixed to `구미역`. `trainDeparture` is the preferred time
-input and is normalized to the next future `오늘 HH:mm` or `내일 HH:mm` value.
+The destination is fixed to `구미역`. `trainDeparture` is the preferred date-time
+input. The home screen sends explicit `YYYY-MM-DD HH:mm`; older clock-only
+inputs are still normalized to the next future `오늘 HH:mm` or `내일 HH:mm`
+value.
 The planner derives the internal station-arrival deadline as `trainDeparture -
 stationBufferMinutes`. When `trainDeparture` is present, that derived deadline
 takes precedence over stale `arrival` query state. Existing callers may still
@@ -300,7 +302,8 @@ Fallback reasons:
   does not expose arbitrary destinations because the destination is fixed to
   `구미역`.
 - `future_planning_not_supported`: the requested train departure or derived
-  station-arrival deadline is not a supported `오늘/내일 HH:mm` value.
+  station-arrival deadline is not a supported `YYYY-MM-DD HH:mm` or
+  `오늘/내일 HH:mm` value.
 - `no_arrival`: TAGO lookup succeeded, but the route-specific origin-stop
   arrival list is empty and no usable timetable plan was available.
 - `tago_error`: the public data API call failed or returned an error response.

@@ -15,7 +15,9 @@ Current technical terms:
 Product terms:
 
 - 출발 의사결정: The core service goal. The main answer is when the user should leave for Gumi Station, not which bus number exists.
-- 기차 출발 시간: User-entered train departure time, normalized to the next future `오늘 HH:mm` or `내일 HH:mm` value.
+- 기차 출발 시간: User-entered train departure date and time. The UI now sends
+  explicit `YYYY-MM-DD HH:mm`; older clock-only inputs still normalize to the
+  next future `오늘 HH:mm` or `내일 HH:mm` value.
 - 구미역 도착 기준: The internal station-arrival deadline, derived from `기차 출발 시간 - 구미역 도착 여유`.
 - 추천 플랜: The primary route plan shown first. In the MVP this is plan A for 진평동 → 구미역.
 - 대안 플랜: Backup plans shown for too-early or late outcomes, used when the recommended plan is missed or unsuitable.
