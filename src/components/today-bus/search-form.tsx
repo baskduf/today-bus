@@ -21,7 +21,7 @@ import {
 } from "@/lib/today-bus/mock-plans";
 
 const timeSelectClass =
-  "h-14 w-full rounded-[18px] border-2 border-[var(--ob-ink-soft)] bg-white px-3 text-center text-[24px] font-black text-[var(--ob-text)] outline-none transition focus:border-[var(--ob-green-deep)]";
+  "h-14 w-full rounded-[18px] border-2 border-[var(--ob-ink-soft)] bg-white px-3 text-center text-[24px] font-black text-[var(--ob-text)] outline-none transition focus:border-[var(--ob-text)]";
 const kakaoMapAppKey = process.env.NEXT_PUBLIC_KAKAO_MAP_APP_KEY;
 const defaultMapCenter = {
   lat: 36.096,
@@ -334,7 +334,7 @@ export function SearchForm() {
             출발지
           </span>
           <div
-            className="relative h-64 overflow-hidden rounded-[18px] border-2 border-[var(--ob-ink-soft)] bg-white"
+            className="relative h-64 overflow-hidden rounded-[18px] border-2 border-[var(--ob-ink-soft)] bg-white grayscale contrast-110"
             data-today-bus-map
           >
             <div className="absolute inset-0" ref={mapContainerRef} />
@@ -347,7 +347,7 @@ export function SearchForm() {
             ) : null}
           </div>
           {input.originPlaceName || selectedCoordinate ? (
-            <span className="text-[15px] font-bold text-[var(--ob-green-deep)]">
+            <span className="text-[15px] font-bold text-[var(--ob-text)]">
               {input.originAddress || input.originPlaceName || selectedCoordinate}
             </span>
           ) : null}
@@ -415,9 +415,9 @@ export function SearchForm() {
                   key={buffer}
                   onClick={() => updateInput("buffer", buffer)}
                   style={{
-                    background: selected ? obColors.yellow : "#FFFFFF",
-                    borderColor: selected ? "#D9B93B" : obColors.inkSoft,
-                    color: selected ? obColors.text : obColors.text2,
+                    background: selected ? obColors.text : "#FFFFFF",
+                    borderColor: obColors.text,
+                    color: selected ? "#FFFFFF" : obColors.text,
                   }}
                   type="button"
                 >

@@ -20,9 +20,9 @@ type PlanCardProps = {
 
 const statusAccents = {
   caution: obColors.yellow,
-  danger: obColors.coral,
-  late: obColors.coral,
-  safe: obColors.green,
+  danger: obColors.text,
+  late: obColors.text,
+  safe: obColors.text,
   too_early: obColors.yellow,
 } as const;
 
@@ -48,7 +48,7 @@ export function PlanCard({
   return (
     <SketchCard
       accent={isRecovery ? obColors.coral : statusAccents[plan.status]}
-      bg={isRecovery ? "#FFF7F2" : plan.primary ? "#FFFDF7" : "#FFFFFF"}
+      bg={isRecovery ? obColors.card : plan.primary ? obColors.card : "#FFFFFF"}
       borderWidth={plan.primary || isRecovery ? 3 : 2.2}
       id={anchorId ?? plan.id}
       pad={plan.primary ? 22 : 18}

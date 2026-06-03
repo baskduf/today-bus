@@ -11,13 +11,15 @@ Use these rules when building today-bus UI from the mockup references.
 ## Visual Language
 
 - Tone: friendly, hand-drawn, high-readability transit planner.
-- Base surfaces: pale mint background, warm cream cards, dark green-gray text.
+- Brand title: `구미역으로 가자`.
+- Logo: use `public/bus-logo.jpg`, sourced from `/Users/wb/Desktop/images/bus.jpg`.
+- Base surfaces: white background, white cards, black text, and black sketch borders.
 - Accent colors:
-  - Mint/green for primary safe actions and current plan state.
-  - Coral for warnings, delays, and risky plans.
-  - Yellow for highlights, selected safety buffer, and emphasis swipes.
+  - Black for primary actions, status emphasis, warnings, and selected controls.
+  - Light gray for secondary badges, highlights, and non-primary emphasis.
 - Shape language: organic rounded corners from the shared `.ob-card`, `.ob-r2`, `.ob-r3`, and `.ob-pill` helpers.
-- Icons: simple line-drawn doodle icons with rounded caps and the `.ob-rough` filter.
+- Icons: simple black line-drawn doodle icons with rounded caps and the `.ob-rough` filter.
+- Typography: all app chrome, forms, buttons, cards, and labels should use the global hand-drawn `--font-ob-hand` family.
 
 ## Shared Components
 

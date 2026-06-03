@@ -92,7 +92,7 @@ export default async function RecommendedPlanPage({
           </p>
         </section>
 
-        <SketchCard accent={obColors.coral} bg="#FFF7F2" pad={18} radius="r2">
+        <SketchCard accent={obColors.text} bg={obColors.card} pad={18} radius="r2">
           <div className="flex gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white">
               <IconWarn size={30} stroke={obColors.coralDeep} />

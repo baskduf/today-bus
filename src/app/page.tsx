@@ -1,4 +1,4 @@
-import { IconBusBig } from "@/components/icons/doodle-icons";
+import Image from "next/image";
 import { SearchForm } from "@/components/today-bus/search-form";
 import { obColors } from "@/lib/design/tokens";
 
@@ -8,13 +8,20 @@ export default function Home() {
       <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
         <header className="flex items-center gap-3">
           <div
-            className="flex h-14 w-14 items-center justify-center rounded-full border-[2.6px] bg-[var(--ob-card)]"
+            className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-[2.6px] bg-[var(--ob-card)] p-2"
             style={{ borderColor: obColors.inkSoft }}
           >
-            <IconBusBig size={52} stroke={obColors.ink} />
+            <Image
+              alt="구미역으로 가자 버스 로고"
+              className="h-full w-full object-contain grayscale contrast-125"
+              height={72}
+              priority
+              src="/bus-logo.jpg"
+              width={82}
+            />
           </div>
-          <h1 className="text-[27px] font-black leading-tight text-[var(--ob-text)]">
-            구미역 기차 언제 타지?
+          <h1 className="text-[31px] font-black leading-tight text-[var(--ob-text)]">
+            구미역으로 가자
           </h1>
         </header>
 

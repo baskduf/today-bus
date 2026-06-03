@@ -19,9 +19,9 @@ export function NotificationButton({ departureTime }: NotificationButtonProps) {
         onClick={() => setRequested(true)}
       >
         {requested ? (
-          <IconCheck size={24} stroke={obColors.greenDeep} />
+          <IconCheck size={24} stroke={obColors.text} />
         ) : (
-          <IconBell size={24} stroke="#1d3a29" />
+          <IconBell size={24} stroke="#FFFFFF" />
         )}
         {requested ? `${departureTime} 출발 알림 준비됨` : "출발 알림 받기"}
       </SketchButton>

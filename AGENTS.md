@@ -8,7 +8,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Project Overview
 
-- Product: `구미역 기차 언제 타지?`
+- Product: `구미역으로 가자`
 - Repository/package identifier: `today-bus`
 - Stack: Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4
 - Package manager: npm with `package-lock.json`

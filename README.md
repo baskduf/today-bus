@@ -3,7 +3,7 @@
 `today-bus` is a small Next.js app used to dogfood repository-level harness
 engineering for coding agents.
 
-The product is `구미역 기차 언제 타지?`: users pick a starting coordinate on a
+The product is `구미역으로 가자`: users pick a starting coordinate on a
 map, enter a future train departure time, and the app recommends when to leave
 for Gumi Station.
 

@@ -1,11 +1,20 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Gaegu, Geist_Mono } from "next/font/google";
 import { RoughSvgFilters } from "@/components/ui/rough-svg-filters";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const gaegu = Gaegu({
+  display: "swap",
+  fallback: [
+    "Comic Sans MS",
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    "system-ui",
+    "sans-serif",
+  ],
   subsets: ["latin"],
+  variable: "--font-gaegu",
+  weight: ["300", "400", "700"],
 });
 
 const geistMono = Geist_Mono({
@@ -14,7 +23,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "구미역 기차 언제 타지?",
+  title: "구미역으로 가자",
   description: "구미역 기차 시간에 맞춰 오늘 나가야 할 시간을 알려주는 서비스",
 };
 
@@ -26,7 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${gaegu.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <RoughSvgFilters />

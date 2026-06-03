@@ -10,19 +10,19 @@ type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
 
 const tones = {
   coral: {
-    bg: "#FFEDE7",
-    border: obColors.coral,
-    color: obColors.coralDeep,
+    bg: "#FFFFFF",
+    border: obColors.text,
+    color: obColors.text,
   },
   mint: {
-    bg: "#E7F6EC",
-    border: obColors.mint,
-    color: obColors.greenDeep,
+    bg: "#FFFFFF",
+    border: obColors.text,
+    color: obColors.text,
   },
   yellow: {
-    bg: "#FFF6DB",
-    border: obColors.yellow,
-    color: "#B8860B",
+    bg: obColors.yellow,
+    border: obColors.text,
+    color: obColors.text,
   },
 } as const;
 
@@ -43,6 +43,7 @@ export function Badge({
         borderRadius: "16px 12px 18px 11px / 11px 18px 12px 16px",
         color: color.color,
         display: "inline-flex",
+        fontFamily: "var(--font-ob-hand)",
         fontSize: 15,
         fontWeight: 700,
         gap: 5,

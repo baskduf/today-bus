@@ -1,16 +1,16 @@
 export const obColors = {
-  bg: "#F4FBF6",
-  mint: "#A8DDB5",
-  green: "#6FCF97",
-  greenDeep: "#4FB07A",
-  card: "#FFFDF7",
-  text: "#2F3A34",
-  text2: "#7A8C80",
-  coral: "#FF9F8A",
-  coralDeep: "#F47B62",
-  yellow: "#FFE08A",
-  ink: "#5C8A6F",
-  inkSoft: "#9CC9AD",
+  bg: "#FFFFFF",
+  mint: "#111111",
+  green: "#111111",
+  greenDeep: "#000000",
+  card: "#FFFFFF",
+  text: "#111111",
+  text2: "#555555",
+  coral: "#111111",
+  coralDeep: "#000000",
+  yellow: "#F2F2F2",
+  ink: "#111111",
+  inkSoft: "#222222",
 } as const;
 
 export const obRadii = {
@@ -21,29 +21,29 @@ export const obRadii = {
 } as const;
 
 export const obShadows = {
-  card: "0 8px 18px rgba(79,120,90,0.10)",
-  button: "0 6px 0 var(--ob-button-border), 0 10px 16px rgba(79,120,90,0.16)",
+  card: "0 8px 18px rgba(0,0,0,0.08)",
+  button: "0 6px 0 var(--ob-button-border), 0 10px 16px rgba(0,0,0,0.14)",
 } as const;
 
 export const obButtonKinds = {
   primary: {
-    bg: obColors.green,
-    border: obColors.greenDeep,
-    color: "#1d3a29",
+    bg: obColors.text,
+    border: obColors.text,
+    color: "#FFFFFF",
   },
   soft: {
-    bg: "#EAF7EE",
-    border: obColors.mint,
-    color: obColors.greenDeep,
+    bg: "#FFFFFF",
+    border: obColors.text,
+    color: obColors.text,
   },
   coral: {
-    bg: obColors.coral,
-    border: obColors.coralDeep,
-    color: "#5a241a",
+    bg: obColors.text,
+    border: obColors.text,
+    color: "#FFFFFF",
   },
   ghost: {
     bg: obColors.card,
-    border: obColors.inkSoft,
+    border: obColors.text,
     color: obColors.text,
   },
 } as const;

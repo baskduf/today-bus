@@ -1,6 +1,6 @@
 # Domain Glossary
 
-`구미역 기차 언제 타지?` helps users decide when to leave for Gumi
+`구미역으로 가자` helps users decide when to leave for Gumi
 Station so they can catch a train. The MVP still uses the local bus planner and
 demo route data behind that decision.
 
@@ -8,7 +8,7 @@ Current technical terms:
 
 - `today-bus`: The repository/package identifier retained for npm and local
   paths.
-- `구미역 기차 언제 타지?`: The product name shown to users.
+- `구미역으로 가자`: The product name shown to users.
 - App Router: The Next.js routing model used under `src/app/`.
 - Harness: Durable repository instructions, memory, and checks that help future coding agents work consistently.
 
