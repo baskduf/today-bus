@@ -223,3 +223,172 @@ test("direct route planner skips stops whose route lookup fails", async () => {
   assert.equal(calls.getRouteStops, 1);
   assert.equal(calls.getRouteArrivals, 1);
 });
+
+test("direct route planner uses walking route API duration when available", async () => {
+  const calls = {
+    getWalkingRoute: 0,
+  };
+  const provider = {
+    async getRouteArrivals(_cityCode, nodeId, routeId) {
+      return [
+        {
+          arrtime: 300,
+          nodeid: nodeId,
+          routeid: routeId,
+          routeno: 181,
+        },
+      ];
+    },
+    async getRouteStops(_cityCode, routeId) {
+      return [
+        {
+          gpslati: 36.101,
+          gpslong: 128.431,
+          nodeid: "GMB900",
+          nodenm: "강동병원앞",
+          nodeno: "10900",
+          nodeord: 8,
+          routeid: routeId,
+        },
+        {
+          nodeid: "GMB79",
+          nodenm: "구미역(중앙시장)",
+          nodeno: "10079",
+          nodeord: 28,
+          routeid: routeId,
+        },
+      ];
+    },
+    async getStopRoutes() {
+      return [
+        {
+          routeid: "GMB18120",
+          routeno: 181,
+        },
+      ];
+    },
+    async searchNearbyStops() {
+      return [
+        {
+          dist: 95,
+          gpslati: 36.101,
+          gpslong: 128.431,
+          nodeid: "GMB900",
+          nodenm: "강동병원앞",
+          nodeno: "10900",
+        },
+      ];
+    },
+  };
+  const walkingRouteProvider = {
+    async getWalkingRoute(request) {
+      calls.getWalkingRoute += 1;
+      assert.equal(request.from.label, "강동병원");
+      assert.equal(request.to.label, "강동병원앞");
+
+      return {
+        checkedAt: "2026-06-02T06:20:00.000Z",
+        distanceMeters: 360,
+        durationSeconds: 410,
+        source: "openrouteservice_foot_walking",
+      };
+    },
+  };
+
+  const result = await getDirectRouteCandidates(
+    {
+      originPlace,
+    },
+    provider,
+    walkingRouteProvider,
+  );
+
+  const boardingStop = result.candidates[0].itinerary.boardingStop;
+
+  assert.equal(result.candidateCount, 1);
+  assert.equal(boardingStop.distanceMeters, 95);
+  assert.equal(boardingStop.walkingDistanceMeters, 360);
+  assert.equal(boardingStop.walkDurationSeconds, 410);
+  assert.equal(boardingStop.walkMinutesFromOrigin, 7);
+  assert.equal(boardingStop.walkSource, "openrouteservice_foot_walking");
+  assert.equal(boardingStop.walkFallbackReason, undefined);
+  assert.equal(calls.getWalkingRoute, 1);
+});
+
+test("direct route planner exposes distance-estimate fallback when walking route fails", async () => {
+  const provider = {
+    async getRouteArrivals(_cityCode, nodeId, routeId) {
+      return [
+        {
+          arrtime: 300,
+          nodeid: nodeId,
+          routeid: routeId,
+          routeno: 181,
+        },
+      ];
+    },
+    async getRouteStops(_cityCode, routeId) {
+      return [
+        {
+          gpslati: 36.101,
+          gpslong: 128.431,
+          nodeid: "GMB900",
+          nodenm: "강동병원앞",
+          nodeno: "10900",
+          nodeord: 8,
+          routeid: routeId,
+        },
+        {
+          nodeid: "GMB79",
+          nodenm: "구미역(중앙시장)",
+          nodeno: "10079",
+          nodeord: 28,
+          routeid: routeId,
+        },
+      ];
+    },
+    async getStopRoutes() {
+      return [
+        {
+          routeid: "GMB18120",
+          routeno: 181,
+        },
+      ];
+    },
+    async searchNearbyStops() {
+      return [
+        {
+          dist: 95,
+          gpslati: 36.101,
+          gpslong: 128.431,
+          nodeid: "GMB900",
+          nodenm: "강동병원앞",
+          nodeno: "10900",
+        },
+      ];
+    },
+  };
+  const walkingRouteProvider = {
+    async getWalkingRoute() {
+      throw new Error("walking provider failed");
+    },
+  };
+
+  const result = await getDirectRouteCandidates(
+    {
+      originPlace,
+    },
+    provider,
+    walkingRouteProvider,
+  );
+
+  const boardingStop = result.candidates[0].itinerary.boardingStop;
+
+  assert.equal(result.candidateCount, 1);
+  assert.equal(boardingStop.distanceMeters, 95);
+  assert.equal(boardingStop.walkingDistanceMeters, undefined);
+  assert.equal(boardingStop.walkDurationSeconds, undefined);
+  assert.equal(boardingStop.walkMinutesFromOrigin, 2);
+  assert.equal(boardingStop.walkSource, "distance_estimate");
+  assert.equal(boardingStop.walkFallbackReason, "provider_error");
+});

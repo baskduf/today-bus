@@ -4,7 +4,11 @@ import type {
   TagoStop,
   TagoStopRoute,
 } from "@/lib/tago/client";
-import type { TodayBusItinerary } from "@/lib/transit/demo-route";
+import type {
+  TodayBusItinerary,
+  TodayBusWalkFallbackReason,
+  TodayBusWalkSource,
+} from "@/lib/transit/demo-route";
 import { tagoDemoIdentifiers } from "@/lib/transit/demo-route";
 import {
   gumiStationDestinationStops,
@@ -14,6 +18,10 @@ import {
   tagoNearbyStopsProvider,
   type NearbyStopsProvider,
 } from "@/lib/transit/nearby-stops-provider";
+import {
+  walkingRouteProvider as configuredWalkingRouteProvider,
+  type WalkingRouteProvider,
+} from "@/lib/transit/walking-route-provider";
 
 export type DirectRouteOriginPlace = {
   address?: string;
@@ -59,6 +67,15 @@ const demoRouteStopSpan =
 const minutesPerStop =
   demoRouteStopSpan > 0 ? demoRideMinutes / demoRouteStopSpan : 1.2;
 
+type OriginWalkMeasurement = {
+  distanceMeters?: number;
+  fallbackReason?: TodayBusWalkFallbackReason;
+  source: TodayBusWalkSource;
+  walkingDistanceMeters?: number;
+  walkDurationSeconds?: number;
+  walkMinutes: number;
+};
+
 function readNumber(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value !== "string" || value.trim() === "") return undefined;
@@ -83,6 +100,15 @@ function getStopDistanceMeters(stop: TagoStop, origin: DirectRouteOriginPlace) {
   return haversineMeters(origin.lat, origin.lng, stop.gpslati, stop.gpslong);
 }
 
+function getStopCoordinates(stop: TagoStop, routeStop: TagoRouteStop) {
+  const lat = readNumber(stop.gpslati) ?? readNumber(routeStop.gpslati);
+  const lng = readNumber(stop.gpslong) ?? readNumber(routeStop.gpslong);
+
+  if (lat === undefined || lng === undefined) return undefined;
+
+  return { lat, lng };
+}
+
 function haversineMeters(
   fromLat: number,
   fromLng: number,
@@ -105,6 +131,68 @@ function haversineMeters(
 function getWalkMinutes(distanceMeters: number | undefined) {
   if (distanceMeters === undefined) return fallbackWalkMinutes;
   return Math.max(1, Math.ceil(distanceMeters / metersPerWalkingMinute));
+}
+
+function createDistanceWalkEstimate(
+  distanceMeters: number | undefined,
+  fallbackReason?: TodayBusWalkFallbackReason,
+): OriginWalkMeasurement {
+  return {
+    distanceMeters:
+      distanceMeters === undefined ? undefined : Math.round(distanceMeters),
+    fallbackReason,
+    source: "distance_estimate",
+    walkMinutes: getWalkMinutes(distanceMeters),
+  };
+}
+
+async function getOriginWalkMeasurement({
+  originPlace,
+  originRouteStop,
+  originStop,
+  walkingRouteProvider,
+}: {
+  originPlace: DirectRouteOriginPlace;
+  originRouteStop: TagoRouteStop;
+  originStop: TagoStop;
+  walkingRouteProvider: WalkingRouteProvider;
+}): Promise<OriginWalkMeasurement> {
+  const distanceMeters = getStopDistanceMeters(originStop, originPlace);
+  const stopCoordinates = getStopCoordinates(originStop, originRouteStop);
+
+  if (!stopCoordinates) {
+    return createDistanceWalkEstimate(distanceMeters, "missing_stop_coordinates");
+  }
+
+  try {
+    const walkingRoute = await walkingRouteProvider.getWalkingRoute({
+      from: {
+        label: originPlace.label,
+        lat: originPlace.lat,
+        lng: originPlace.lng,
+      },
+      to: {
+        label: originRouteStop.nodenm || originStop.nodenm,
+        lat: stopCoordinates.lat,
+        lng: stopCoordinates.lng,
+      },
+    });
+
+    if (!walkingRoute) {
+      return createDistanceWalkEstimate(distanceMeters, "provider_unavailable");
+    }
+
+    return {
+      distanceMeters:
+        distanceMeters === undefined ? undefined : Math.round(distanceMeters),
+      source: walkingRoute.source,
+      walkingDistanceMeters: walkingRoute.distanceMeters,
+      walkDurationSeconds: walkingRoute.durationSeconds,
+      walkMinutes: Math.max(1, Math.ceil(walkingRoute.durationSeconds / 60)),
+    };
+  } catch {
+    return createDistanceWalkEstimate(distanceMeters, "provider_error");
+  }
 }
 
 function normalizeStopNo(value: TagoRouteStop | TagoStop) {
@@ -180,6 +268,7 @@ function createCandidate({
   originStop,
   route,
   routeStops,
+  walkMeasurement,
 }: {
   arrivals: TagoArrival[];
   checkedAt: string;
@@ -189,6 +278,7 @@ function createCandidate({
   originStop: TagoStop;
   route: TagoStopRoute;
   routeStops: TagoRouteStop[];
+  walkMeasurement: OriginWalkMeasurement;
 }) {
   const destinationRouteStop = routeStops.find(
     (stop) => stop.nodeid === destinationStop.nodeId,
@@ -205,8 +295,7 @@ function createCandidate({
     return undefined;
   }
 
-  const distanceMeters = getStopDistanceMeters(originStop, originPlace);
-  const walkMinutesFromOrigin = getWalkMinutes(distanceMeters);
+  const walkMinutesFromOrigin = walkMeasurement.walkMinutes;
   const routeStopSpan = destinationOrder - originOrder;
   const busRideMinutes = Math.max(4, Math.round(routeStopSpan * minutesPerStop));
   const originOffsetMinutes = Math.max(
@@ -223,13 +312,16 @@ function createCandidate({
       stopOrder: destinationOrder,
     },
     boardingStop: {
-      distanceMeters:
-        distanceMeters === undefined ? undefined : Math.round(distanceMeters),
+      distanceMeters: walkMeasurement.distanceMeters,
       name: originRouteStop.nodenm || originStop.nodenm,
       nodeId: originStop.nodeid,
       stopNo: normalizeStopNo(originRouteStop) || normalizeStopNo(originStop),
       stopOrder: originOrder,
+      walkDurationSeconds: walkMeasurement.walkDurationSeconds,
+      walkFallbackReason: walkMeasurement.fallbackReason,
       walkMinutesFromOrigin,
+      walkSource: walkMeasurement.source,
+      walkingDistanceMeters: walkMeasurement.walkingDistanceMeters,
     },
     destinationPlace: {
       label: destinationStop.label,
@@ -269,6 +361,7 @@ function createCandidate({
 export async function getDirectRouteCandidates(
   input: DirectRoutePlanningInput,
   provider: NearbyStopsProvider = tagoNearbyStopsProvider,
+  walkingRouteProvider: WalkingRouteProvider = configuredWalkingRouteProvider,
 ): Promise<DirectRoutePlanningResult> {
   const cityCode = input.cityCode ?? tagoDemoIdentifiers.cityCode;
   const checkedAt = new Date().toISOString();
@@ -281,6 +374,7 @@ export async function getDirectRouteCandidates(
     input.originPlace,
   ).slice(0, input.maxNearbyStops ?? defaultMaxNearbyStops);
   const routeStopsByRouteId = new Map<string, Promise<TagoRouteStop[]>>();
+  const walkMeasurementsByStopId = new Map<string, Promise<OriginWalkMeasurement>>();
   const routesByStop = await Promise.all(
     nearbyStops.map(async (stop) => {
       try {
@@ -309,6 +403,25 @@ export async function getDirectRouteCandidates(
     }
 
     return routeStopsPromise;
+  }
+
+  function getWalkMeasurementOnce(
+    originStop: TagoStop,
+    originRouteStop: TagoRouteStop,
+  ) {
+    let walkMeasurementPromise = walkMeasurementsByStopId.get(originStop.nodeid);
+
+    if (!walkMeasurementPromise) {
+      walkMeasurementPromise = getOriginWalkMeasurement({
+        originPlace: input.originPlace,
+        originRouteStop,
+        originStop,
+        walkingRouteProvider,
+      });
+      walkMeasurementsByStopId.set(originStop.nodeid, walkMeasurementPromise);
+    }
+
+    return walkMeasurementPromise;
   }
 
   const routeTasks = routesByStop.flatMap(({ routes, stop }) =>
@@ -369,6 +482,8 @@ export async function getDirectRouteCandidates(
           arrivals = [];
         }
 
+        const walkMeasurement = await getWalkMeasurementOnce(stop, originRouteStop);
+
         return createCandidate({
           arrivals,
           checkedAt,
@@ -378,6 +493,7 @@ export async function getDirectRouteCandidates(
           originStop: stop,
           route,
           routeStops,
+          walkMeasurement,
         });
       },
     )

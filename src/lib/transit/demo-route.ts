@@ -8,6 +8,16 @@ export type TodayBusPlanningMode =
   | "dynamic_direct"
   | "mock";
 
+export type TodayBusWalkFallbackReason =
+  | "missing_stop_coordinates"
+  | "provider_error"
+  | "provider_unavailable";
+
+export type TodayBusWalkSource =
+  | "distance_estimate"
+  | "openrouteservice_foot_walking"
+  | "tmap_pedestrian";
+
 export type TodayBusItinerary = {
   alightingStop: {
     name: string;
@@ -21,7 +31,11 @@ export type TodayBusItinerary = {
     nodeId: string;
     stopNo: string;
     stopOrder: number;
+    walkDurationSeconds?: number;
+    walkFallbackReason?: TodayBusWalkFallbackReason;
     walkMinutesFromOrigin: number;
+    walkSource?: TodayBusWalkSource;
+    walkingDistanceMeters?: number;
   };
   destinationPlace: {
     label: string;

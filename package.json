@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:planner": "node --test tests/planner-branches.test.mjs tests/direct-route-planner.test.mjs tests/nearby-stops-provider.test.mjs",
+    "check:walking-route": "node scripts/check-walking-route.mjs",
+    "test:planner": "node --test tests/planner-branches.test.mjs tests/direct-route-planner.test.mjs tests/nearby-stops-provider.test.mjs tests/openrouteservice-walking.test.mjs tests/tmap-walking.test.mjs",
     "typecheck": "tsc --noEmit --incremental false",
     "check:harness": "npm run lint && npm run test:planner && npm run typecheck && npm run build && node scripts/check-harness.mjs"
   },
