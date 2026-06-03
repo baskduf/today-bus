@@ -57,4 +57,5 @@ For coordinate-based route search:
   candidates instead of failing.
 - `POST /api/plans` for that coordinate returned `source: "tago"` with route
   `187` from `강동병원앞` to `구미역(중앙시장)`.
-- `npm run test:planner`
+- `npm run test:planner`, including provider-boundary coverage for the
+  `nodeid` parameter.

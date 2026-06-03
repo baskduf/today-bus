@@ -1,5 +1,6 @@
 import {
   callTago,
+  type TagoCallResult,
   type TagoArrival,
   type TagoRouteStop,
   type TagoStop,
@@ -27,61 +28,73 @@ export type NearbyStopsProvider = {
   ) => Promise<TagoStop[]>;
 };
 
-export const tagoNearbyStopsProvider: NearbyStopsProvider = {
-  async getRouteArrivals(cityCode, nodeId, routeId) {
-    const arrivals = await callTago<TagoArrival>({
-      path: "/getSttnAcctoSpcifyRouteBusArvlPrearngeInfoList",
-      params: {
-        cityCode,
-        nodeId,
-        routeId,
-      },
-      service: "arrival",
-    });
+type TagoCaller = <T>(options: {
+  params?: Record<string, number | string | undefined>;
+  path: string;
+  service: "arrival" | "location" | "route" | "station";
+}) => Promise<TagoCallResult<T>>;
 
-    return arrivals.items;
-  },
+export function createTagoNearbyStopsProvider(
+  tagoCaller: TagoCaller = callTago,
+): NearbyStopsProvider {
+  return {
+    async getRouteArrivals(cityCode, nodeId, routeId) {
+      const arrivals = await tagoCaller<TagoArrival>({
+        path: "/getSttnAcctoSpcifyRouteBusArvlPrearngeInfoList",
+        params: {
+          cityCode,
+          nodeId,
+          routeId,
+        },
+        service: "arrival",
+      });
 
-  async getRouteStops(cityCode, routeId) {
-    const routeStops = await callTago<TagoRouteStop>({
-      path: "/getRouteAcctoThrghSttnList",
-      params: {
-        cityCode,
-        numOfRows: 300,
-        routeId,
-      },
-      service: "route",
-    });
+      return arrivals.items;
+    },
 
-    return routeStops.items;
-  },
+    async getRouteStops(cityCode, routeId) {
+      const routeStops = await tagoCaller<TagoRouteStop>({
+        path: "/getRouteAcctoThrghSttnList",
+        params: {
+          cityCode,
+          numOfRows: 300,
+          routeId,
+        },
+        service: "route",
+      });
 
-  async getStopRoutes(cityCode, nodeId) {
-    const routes = await callTago<TagoStopRoute>({
-      path: "/getSttnThrghRouteList",
-      params: {
-        cityCode,
-        nodeid: nodeId,
-        numOfRows: 300,
-      },
-      service: "station",
-    });
+      return routeStops.items;
+    },
 
-    return routes.items;
-  },
+    async getStopRoutes(cityCode, nodeId) {
+      const routes = await tagoCaller<TagoStopRoute>({
+        path: "/getSttnThrghRouteList",
+        params: {
+          cityCode,
+          nodeid: nodeId,
+          numOfRows: 300,
+        },
+        service: "station",
+      });
 
-  async searchNearbyStops(cityCode, lat, lng) {
-    const stops = await callTago<TagoStop>({
-      path: "/getCrdntPrxmtSttnList",
-      params: {
-        cityCode,
-        gpsLati: lat,
-        gpsLong: lng,
-        numOfRows: 20,
-      },
-      service: "station",
-    });
+      return routes.items;
+    },
 
-    return stops.items;
-  },
-};
+    async searchNearbyStops(cityCode, lat, lng) {
+      const stops = await tagoCaller<TagoStop>({
+        path: "/getCrdntPrxmtSttnList",
+        params: {
+          cityCode,
+          gpsLati: lat,
+          gpsLong: lng,
+          numOfRows: 20,
+        },
+        service: "station",
+      });
+
+      return stops.items;
+    },
+  };
+}
+
+export const tagoNearbyStopsProvider = createTagoNearbyStopsProvider();

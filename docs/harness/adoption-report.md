@@ -54,7 +54,7 @@ python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report
 ## Verification Gate Placement
 
 - Normal completion gate: `npm run check:harness`.
-- Deterministic behavior checks included in the normal gate: `npm run test:planner` is included in `check:harness` because it is deterministic, local, non-network, reasonably fast, and verifies coordinate-based direct route selection, TAGO, Gumi BIS timetable, mock fallback, and future train-time normalization behavior.
+- Deterministic behavior checks included in the normal gate: `npm run test:planner` is included in `check:harness` because it is deterministic, local, non-network, reasonably fast, and verifies coordinate-based direct route selection, TAGO provider parameter casing, Gumi BIS timetable, mock fallback, stale arrival recomputation, and future train-time normalization behavior.
 - Focused or manual checks outside the normal gate: `node scripts/check-tago-backend.mjs`, `node scripts/check-gumi-bis-offset.mjs`, browser smoke verification through `npm run dev`, and any live public-data diagnostics.
 - Reasons for focused/manual placement: live TAGO and Gumi BIS checks depend on credentials, network behavior, public provider availability, and current public-data state. Browser smoke is useful for visible UI work but remains manual because the repository has no stable automated browser test runner yet.
 
@@ -69,7 +69,7 @@ python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report
 
 - Required: yes when work touches TAGO, Gumi BIS, planner fallback behavior, or related fixtures; not required for harness-only documentation updates.
 - Boundary: ADR 0005 covers the TAGO-backed planner boundary, and ADR 0006 covers the Gumi BIS timetable fallback boundary.
-- Live/mock mode: `npm run test:planner` covers non-network planner branches and is included in `check:harness`. `scripts/check-tago-backend.mjs` and `scripts/check-gumi-bis-offset.mjs` are focused live/public-data diagnostics and stay outside `check:harness`.
+- Live/mock mode: `npm run test:planner` covers non-network planner branches and TAGO provider request-shape fixtures, and is included in `check:harness`. `scripts/check-tago-backend.mjs` and `scripts/check-gumi-bis-offset.mjs` are focused live/public-data diagnostics and stay outside `check:harness`.
 - Secret handling and redaction checked: TAGO service-key handling and request redaction belong in the server-only TAGO client boundary. Reports and failure notes must not print service-key values.
 - Empty or zero-result behavior: TAGO zero-arrival and Gumi BIS fallback behavior are documented in ADR 0005 and ADR 0006 and covered by planner branch checks.
 - Provider error handling: TAGO JSON/XML provider envelopes and Gumi BIS transport/runtime quirks are handled in the integration boundary; known Node TLS behavior is recorded in Failure 0003. The external API dogfood note records the remaining provider text-error gap for invalid TAGO credentials.
