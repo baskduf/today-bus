@@ -29,4 +29,8 @@ Product terms:
   treated as origin-stop candidates before route direction filtering.
 - 구미역 하차 후보: Managed destination-side stops near Gumi Station that can
   complete a direct route from the selected origin stop.
+- 보행 경로 시간: The origin-to-boarding-stop walking duration used by dynamic
+  direct planning. It can use a configured walking route API such as
+  OpenRouteService or TMAP, and falls back to the deterministic distance
+  estimate with response metadata.
 - mock data: Fixed demo transit data used until real bus APIs are introduced.

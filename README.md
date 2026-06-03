@@ -95,14 +95,15 @@ behavior, or public endpoint stability.
 Focused diagnostics:
 
 ```bash
+npm run check:walking-route
 node scripts/check-tago-backend.mjs
 node scripts/check-gumi-bis-offset.mjs
 ```
 
-Use `docs/checklists/external-api-work.md` before changing TAGO, Gumi BIS, or
-any public-data boundary. Reports must name live/mock mode, redaction behavior,
-empty-result handling, provider-error handling, and the smoke command used or
-intentionally skipped.
+Use `docs/checklists/external-api-work.md` before changing TAGO, Gumi BIS, TMAP,
+OpenRouteService, or any public-data boundary. Reports must name live/mock mode,
+redaction behavior, empty-result handling, provider-error handling, and the
+smoke command used or intentionally skipped.
 
 ## Key Paths
 
