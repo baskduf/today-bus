@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:planner": "node --test tests/planner-branches.test.mjs",
+    "test:planner": "node --test tests/planner-branches.test.mjs tests/direct-route-planner.test.mjs",
     "typecheck": "tsc --noEmit --incremental false",
     "check:harness": "npm run lint && npm run test:planner && npm run typecheck && npm run build && node scripts/check-harness.mjs"
   },

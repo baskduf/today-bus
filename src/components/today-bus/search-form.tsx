@@ -4,7 +4,6 @@ import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  IconBus,
   IconClock,
   IconPin,
   IconSpark,
@@ -21,54 +20,57 @@ import {
   type TripInput,
 } from "@/lib/today-bus/mock-plans";
 
-const inputClass =
-  "h-14 w-full rounded-[18px] border-2 border-[var(--ob-ink-soft)] bg-white px-4 text-[21px] font-bold text-[var(--ob-text)] outline-none transition focus:border-[var(--ob-green-deep)]";
 const timeSelectClass =
   "h-14 w-full rounded-[18px] border-2 border-[var(--ob-ink-soft)] bg-white px-3 text-center text-[24px] font-black text-[var(--ob-text)] outline-none transition focus:border-[var(--ob-green-deep)]";
 const kakaoMapAppKey = process.env.NEXT_PUBLIC_KAKAO_MAP_APP_KEY;
+const defaultMapCenter = {
+  lat: 36.096,
+  lng: 128.429,
+};
 const trainHourOptions = Array.from({ length: 24 }, (_, hour) =>
   String(hour).padStart(2, "0"),
 );
 const trainMinuteOptions = Array.from({ length: 60 }, (_, minute) =>
   String(minute).padStart(2, "0"),
 );
-const quickTrainTimes = ["14:10", "16:10", "18:10", "20:10"] as const;
 
-type KakaoPlaceCandidate = {
-  addressName: string;
-  id: string;
-  lat: string;
-  lng: string;
-  name: string;
-  roadAddressName: string;
+type KakaoServiceStatus = "ERROR" | "OK" | "ZERO_RESULT";
+
+type KakaoLatLng = {
+  getLat: () => number;
+  getLng: () => number;
 };
 
-type KakaoPlaceResult = {
-  address_name?: string;
-  id?: string;
-  place_name?: string;
-  road_address_name?: string;
-  x?: string;
-  y?: string;
+type KakaoMap = {
+  setCenter: (latLng: KakaoLatLng) => void;
 };
 
-type KakaoPlacesSearchOptions = {
-  radius?: number;
-  size?: number;
-  x?: number;
-  y?: number;
+type KakaoMarker = {
+  setMap: (map: KakaoMap | null) => void;
+  setPosition: (latLng: KakaoLatLng) => void;
 };
 
-type KakaoPlacesSearchStatus = "ERROR" | "OK" | "ZERO_RESULT";
+type KakaoMapMouseEvent = {
+  latLng: KakaoLatLng;
+};
 
-type KakaoPlacesService = {
-  keywordSearch: (
-    keyword: string,
+type KakaoAddressResult = {
+  address?: {
+    address_name?: string;
+  };
+  road_address?: {
+    address_name?: string;
+  };
+};
+
+type KakaoGeocoder = {
+  coord2Address: (
+    lng: number,
+    lat: number,
     callback: (
-      results: KakaoPlaceResult[],
-      status: KakaoPlacesSearchStatus,
+      results: KakaoAddressResult[],
+      status: KakaoServiceStatus,
     ) => void,
-    options?: KakaoPlacesSearchOptions,
   ) => void;
 };
 
@@ -76,10 +78,26 @@ declare global {
   interface Window {
     kakao?: {
       maps: {
+        event: {
+          addListener: (
+            target: KakaoMap,
+            type: "click",
+            handler: (event: KakaoMapMouseEvent) => void,
+          ) => void;
+        };
+        LatLng: new (lat: number, lng: number) => KakaoLatLng;
         load: (callback: () => void) => void;
+        Map: new (
+          container: HTMLElement,
+          options: { center: KakaoLatLng; level: number },
+        ) => KakaoMap;
+        Marker: new (options: {
+          map?: KakaoMap;
+          position: KakaoLatLng;
+        }) => KakaoMarker;
         services?: {
-          Places: new () => KakaoPlacesService;
-          Status: Record<KakaoPlacesSearchStatus, KakaoPlacesSearchStatus>;
+          Geocoder?: new () => KakaoGeocoder;
+          Status: Record<KakaoServiceStatus, KakaoServiceStatus>;
         };
       };
     };
@@ -135,41 +153,43 @@ function loadKakaoServices() {
   return kakaoLoader;
 }
 
-function normalizePlace(place: KakaoPlaceResult): KakaoPlaceCandidate | undefined {
-  if (!place.place_name || !place.x || !place.y) return undefined;
+function createInitialTripInput() {
+  const trainDeparture =
+    normalizeTrainDepartureTime(tripDefaults.trainDeparture) ??
+    tripDefaults.trainDeparture;
 
   return {
-    addressName: place.address_name ?? "",
-    id: place.id ?? `${place.place_name}-${place.x}-${place.y}`,
-    lat: place.y,
-    lng: place.x,
-    name: place.place_name,
-    roadAddressName: place.road_address_name ?? "",
-  };
+    arrival:
+      createStationArrivalTime(trainDeparture, tripDefaults.buffer) ??
+      tripDefaults.arrival,
+    buffer: tripDefaults.buffer,
+    origin: "",
+    trainDeparture,
+  } satisfies TripInput;
 }
 
 export function SearchForm() {
   const router = useRouter();
-  const searchRequestId = useRef(0);
-  const [input, setInput] = useState<TripInput>({
-    arrival: tripDefaults.arrival,
-    buffer: tripDefaults.buffer,
-    origin: tripDefaults.origin,
-    trainDeparture: tripDefaults.trainDeparture,
-  });
-  const [originCandidates, setOriginCandidates] = useState<
-    KakaoPlaceCandidate[]
-  >([]);
-  const [originSearchStatus, setOriginSearchStatus] = useState<
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<KakaoMap | null>(null);
+  const markerRef = useRef<KakaoMarker | null>(null);
+  const [input, setInput] = useState<TripInput>(() => createInitialTripInput());
+  const [mapStatus, setMapStatus] = useState<
     "idle" | "loading" | "ready" | "unavailable"
-  >(kakaoMapAppKey ? "idle" : "unavailable");
-  const [originTouched, setOriginTouched] = useState(false);
+  >(kakaoMapAppKey ? "loading" : "unavailable");
   const trainClock =
     formatClockOnly(input.trainDeparture) ??
     formatClockOnly(tripDefaults.trainDeparture) ??
     "14:10";
-  const stationArrivalClock = formatClockOnly(input.arrival) ?? input.arrival;
   const [selectedTrainHour, selectedTrainMinute] = trainClock.split(":");
+  const isTomorrowTrain = input.trainDeparture.startsWith("내일");
+  const selectedCoordinate =
+    input.originLat && input.originLng
+      ? `${Number(input.originLat).toFixed(5)}, ${Number(input.originLng).toFixed(
+          5,
+        )}`
+      : undefined;
+  const canSubmit = Boolean(input.originLat && input.originLng);
 
   function withDerivedArrival(nextInput: TripInput): TripInput {
     return {
@@ -202,236 +222,187 @@ export function SearchForm() {
     updateTrainClock(`${hour}:${minute}`);
   }
 
-  function updateOrigin(value: string) {
-    setOriginTouched(true);
-    setOriginCandidates([]);
-    setOriginSearchStatus(
-      value.trim().length < 2 ? "idle" : kakaoMapAppKey ? "idle" : "unavailable",
-    );
-    setInput((current) => ({
-      ...current,
-      origin: value,
-      originAddress: undefined,
-      originLat: undefined,
-      originLng: undefined,
-      originPlaceName: undefined,
-      originSource: undefined,
-    }));
-  }
+  function updateOriginFromMap(lat: number, lng: number, address?: string) {
+    const label = address || "지도에서 선택한 위치";
 
-  function selectOriginCandidate(candidate: KakaoPlaceCandidate) {
     setInput((current) => ({
       ...current,
-      origin: candidate.name,
-      originAddress: candidate.roadAddressName || candidate.addressName,
-      originLat: candidate.lat,
-      originLng: candidate.lng,
-      originPlaceName: candidate.name,
-      originSource: "kakao_keyword",
+      origin: label,
+      originAddress: address,
+      originLat: lat.toFixed(6),
+      originLng: lng.toFixed(6),
+      originPlaceName: label,
+      originSource: "manual",
     }));
-    setOriginCandidates([]);
-    setOriginSearchStatus("ready");
   }
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canSubmit) return;
+
     router.push(createTripHref("/plans", input));
   }
 
   useEffect(() => {
-    const keyword = input.origin.trim();
-    const requestId = searchRequestId.current + 1;
+    if (!kakaoMapAppKey || !mapContainerRef.current) return;
 
-    searchRequestId.current = requestId;
+    let cancelled = false;
+
+    setMapStatus("loading");
+    void loadKakaoServices()
+      .then(() => {
+        if (cancelled || !mapContainerRef.current) return;
+
+        const maps = window.kakao?.maps;
+        if (!maps) throw new Error("Kakao maps SDK is not available");
+
+        const center = new maps.LatLng(
+          defaultMapCenter.lat,
+          defaultMapCenter.lng,
+        );
+        const map = new maps.Map(mapContainerRef.current, {
+          center,
+          level: 4,
+        });
+        const marker = new maps.Marker({
+          map,
+          position: center,
+        });
+
+        mapRef.current = map;
+        markerRef.current = marker;
+        maps.event.addListener(map, "click", (event) => {
+          const lat = event.latLng.getLat();
+          const lng = event.latLng.getLng();
+          const geocoder = maps.services?.Geocoder
+            ? new maps.services.Geocoder()
+            : undefined;
+
+          updateOriginFromMap(lat, lng);
+
+          geocoder?.coord2Address(lng, lat, (results, status) => {
+            const address =
+              status === maps.services?.Status.OK
+                ? results[0]?.road_address?.address_name ||
+                  results[0]?.address?.address_name
+                : undefined;
+
+            if (address) updateOriginFromMap(lat, lng, address);
+          });
+        });
+        setMapStatus("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setMapStatus("unavailable");
+      });
+
+    return () => {
+      cancelled = true;
+      markerRef.current?.setMap(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    const maps = window.kakao?.maps;
+    const map = mapRef.current;
+    const marker = markerRef.current;
+    const lat = Number(input.originLat);
+    const lng = Number(input.originLng);
 
     if (
-      !originTouched ||
-      !kakaoMapAppKey ||
-      input.originPlaceName === keyword ||
-      keyword.length < 2
+      !maps ||
+      !map ||
+      !marker ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng)
     ) {
       return;
     }
 
-    const timer = window.setTimeout(() => {
-      setOriginSearchStatus("loading");
-      void loadKakaoServices()
-        .then(() => {
-          const services = window.kakao?.maps.services;
-          if (!services) throw new Error("Kakao services library is missing");
+    const position = new maps.LatLng(lat, lng);
 
-          const places = new services.Places();
-
-          places.keywordSearch(
-            keyword,
-            (results, status) => {
-              if (searchRequestId.current !== requestId) return;
-
-              if (status !== services.Status.OK) {
-                setOriginCandidates([]);
-                setOriginSearchStatus("idle");
-                return;
-              }
-
-              setOriginCandidates(
-                results
-                  .map(normalizePlace)
-                  .filter(
-                    (place): place is KakaoPlaceCandidate =>
-                      place !== undefined,
-                  ),
-              );
-              setOriginSearchStatus("ready");
-            },
-            {
-              radius: 20_000,
-              size: 5,
-              x: 128.429,
-              y: 36.096,
-            },
-          );
-        })
-        .catch(() => {
-          if (searchRequestId.current !== requestId) return;
-          setOriginCandidates([]);
-          setOriginSearchStatus("unavailable");
-        });
-    }, 350);
-
-    return () => window.clearTimeout(timer);
-  }, [input.origin, input.originPlaceName, originTouched]);
+    marker.setPosition(position);
+    map.setCenter(position);
+  }, [input.originLat, input.originLng]);
 
   return (
     <SketchCard accent={obColors.mint} pad={20} radius="r3">
       <form className="flex flex-col gap-5" onSubmit={submitSearch}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="flex flex-col gap-2">
-            <span className="flex items-center gap-2 text-[15px] font-bold text-[var(--ob-text2)]">
-              <IconPin size={20} stroke={obColors.ink} />
-              출발지
-            </span>
-            <input
-              className={inputClass}
-              name="origin"
-              onChange={(event) => updateOrigin(event.target.value)}
-              value={input.origin}
-            />
-            {originCandidates.length > 0 ? (
-              <div className="flex flex-col gap-2 rounded-[18px] border-2 border-dashed border-[var(--ob-ink-soft)] bg-white p-2">
-                {originCandidates.map((candidate) => (
-                  <button
-                    className="ob-tap rounded-[14px] px-3 py-2 text-left"
-                    key={candidate.id}
-                    onClick={() => selectOriginCandidate(candidate)}
-                    type="button"
-                  >
-                    <span className="block text-[17px] font-black text-[var(--ob-text)]">
-                      {candidate.name}
-                    </span>
-                    <span className="block text-[14px] font-bold text-[var(--ob-text2)]">
-                      {candidate.roadAddressName || candidate.addressName}
-                    </span>
-                  </button>
-                ))}
+        <div className="flex flex-col gap-2">
+          <span className="flex items-center gap-2 text-[16px] font-black text-[var(--ob-text)]">
+            <IconPin size={20} stroke={obColors.ink} />
+            출발지
+          </span>
+          <div
+            className="relative h-64 overflow-hidden rounded-[18px] border-2 border-[var(--ob-ink-soft)] bg-white"
+            data-today-bus-map
+          >
+            <div className="absolute inset-0" ref={mapContainerRef} />
+            {mapStatus !== "ready" ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-white px-4 text-center text-[15px] font-bold text-[var(--ob-text2)]">
+                {mapStatus === "unavailable"
+                  ? "지도 선택 비활성"
+                  : "지도 로딩 중"}
               </div>
             ) : null}
-            {input.originPlaceName ? (
-              <span className="text-[14px] font-bold text-[var(--ob-green-deep)]">
-                {input.originAddress || input.originPlaceName}
-              </span>
-            ) : originTouched && originSearchStatus === "loading" ? (
-              <span className="text-[14px] font-bold text-[var(--ob-text2)]">
-                장소 검색 중
-              </span>
-            ) : originTouched && originSearchStatus === "unavailable" ? (
-              <span className="text-[14px] font-bold text-[var(--ob-coral-deep)]">
-                장소 검색 비활성
-              </span>
-            ) : null}
-          </label>
-          <div className="flex flex-col gap-2">
-            <span className="flex items-center gap-2 text-[15px] font-bold text-[var(--ob-text2)]">
-              <IconClock size={20} stroke={obColors.ink} />
-              기차 출발 시간
-            </span>
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-              <select
-                aria-label="기차 출발 시"
-                className={timeSelectClass}
-                onChange={(event) =>
-                  updateTrainClockPart("hour", event.target.value)
-                }
-                value={selectedTrainHour}
-              >
-                {trainHourOptions.map((hour) => (
-                  <option key={hour} value={hour}>
-                    {hour}
-                  </option>
-                ))}
-              </select>
-              <span className="text-[24px] font-black text-[var(--ob-text2)]">
-                :
-              </span>
-              <select
-                aria-label="기차 출발 분"
-                className={timeSelectClass}
-                onChange={(event) =>
-                  updateTrainClockPart("minute", event.target.value)
-                }
-                value={selectedTrainMinute}
-              >
-                {trainMinuteOptions.map((minute) => (
-                  <option key={minute} value={minute}>
-                    {minute}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {quickTrainTimes.map((clock) => {
-                const selected = trainClock === clock;
-
-                return (
-                  <button
-                    aria-pressed={selected}
-                    className="ob-pill ob-tap h-10 border-2 text-[15px] font-bold"
-                    key={clock}
-                    onClick={() => updateTrainClock(clock)}
-                    style={{
-                      background: selected ? obColors.mint : "#FFFFFF",
-                      borderColor: selected
-                        ? obColors.greenDeep
-                        : obColors.inkSoft,
-                      color: selected ? obColors.text : obColors.text2,
-                    }}
-                    type="button"
-                  >
-                    {clock}
-                  </button>
-                );
-              })}
-            </div>
           </div>
-        </div>
-
-        <div className="rounded-[18px] border-2 border-dashed border-[var(--ob-ink-soft)] bg-white px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <span className="flex items-center gap-2 text-[15px] font-bold text-[var(--ob-text2)]">
-              <IconBus size={20} stroke={obColors.ink} />
-              도착역
+          {input.originPlaceName || selectedCoordinate ? (
+            <span className="text-[15px] font-bold text-[var(--ob-green-deep)]">
+              {input.originAddress || input.originPlaceName || selectedCoordinate}
             </span>
-            <span className="text-[21px] font-black text-[var(--ob-text)]">
-              구미역
-            </span>
-          </div>
-          <p className="mt-1 text-[14px] font-bold text-[var(--ob-text2)]">
-            {stationArrivalClock}까지 역에 도착하는 기준입니다.
-          </p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className="text-[15px] font-bold text-[var(--ob-text2)]">
-            구미역 도착 여유
+          <div className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2 text-[16px] font-black text-[var(--ob-text)]">
+              <IconClock size={20} stroke={obColors.ink} />
+              기차 시간
+            </span>
+            {isTomorrowTrain ? (
+              <span className="rounded-full bg-[var(--ob-yellow)] px-3 py-1 text-[14px] font-black text-[var(--ob-text)]">
+                내일
+              </span>
+            ) : null}
+          </div>
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+            <select
+              aria-label="기차 출발 시"
+              className={timeSelectClass}
+              onChange={(event) =>
+                updateTrainClockPart("hour", event.target.value)
+              }
+              value={selectedTrainHour}
+            >
+              {trainHourOptions.map((hour) => (
+                <option key={hour} value={hour}>
+                  {hour}
+                </option>
+              ))}
+            </select>
+            <span className="text-[24px] font-black text-[var(--ob-text2)]">
+              :
+            </span>
+            <select
+              aria-label="기차 출발 분"
+              className={timeSelectClass}
+              onChange={(event) =>
+                updateTrainClockPart("minute", event.target.value)
+              }
+              value={selectedTrainMinute}
+            >
+              {trainMinuteOptions.map((minute) => (
+                <option key={minute} value={minute}>
+                  {minute}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="text-[16px] font-black text-[var(--ob-text)]">
+            여유
           </span>
           <div className="grid grid-cols-3 gap-2">
             {tripDefaults.stationBuffers.map((buffer) => {
@@ -457,9 +428,22 @@ export function SearchForm() {
           </div>
         </div>
 
-        <SketchButton big type="submit">
+        <SketchButton
+          big
+          disabled={!canSubmit}
+          style={
+            canSubmit
+              ? undefined
+              : {
+                  boxShadow: "none",
+                  cursor: "not-allowed",
+                  opacity: 0.45,
+                }
+          }
+          type="submit"
+        >
           <IconSpark size={25} stroke="#1d3a29" />
-          기차 시간 맞춰 나가기
+          계산하기
         </SketchButton>
       </form>
     </SketchCard>

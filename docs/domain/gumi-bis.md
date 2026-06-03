@@ -87,6 +87,12 @@ Current estimate:
 This is good enough for demo planning but should be replaced by operator-provided
 stop-level timetable data if it becomes available.
 
+For coordinate-based direct route planning, the planner derives the candidate
+Gumi BIS `routeId` from the TAGO route id by removing the `GMB` prefix, then
+uses the same route-start-to-origin stop-order estimate. This is still a
+fallback estimate; TAGO live route-specific arrivals remain the preferred
+timing source when available.
+
 ## Offset Observation
 
 Use `node scripts/check-gumi-bis-offset.mjs` to compare TAGO live arrival data at

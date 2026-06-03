@@ -54,7 +54,7 @@ python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report
 ## Verification Gate Placement
 
 - Normal completion gate: `npm run check:harness`.
-- Deterministic behavior checks included in the normal gate: `npm run test:planner` is included in `check:harness` because it is deterministic, local, non-network, reasonably fast, and verifies TAGO, Gumi BIS timetable, mock fallback, and same-day train-time normalization behavior.
+- Deterministic behavior checks included in the normal gate: `npm run test:planner` is included in `check:harness` because it is deterministic, local, non-network, reasonably fast, and verifies coordinate-based direct route selection, TAGO, Gumi BIS timetable, mock fallback, and future train-time normalization behavior.
 - Focused or manual checks outside the normal gate: `node scripts/check-tago-backend.mjs`, `node scripts/check-gumi-bis-offset.mjs`, browser smoke verification through `npm run dev`, and any live public-data diagnostics.
 - Reasons for focused/manual placement: live TAGO and Gumi BIS checks depend on credentials, network behavior, public provider availability, and current public-data state. Browser smoke is useful for visible UI work but remains manual because the repository has no stable automated browser test runner yet.
 

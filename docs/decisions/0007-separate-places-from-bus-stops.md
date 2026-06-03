@@ -40,10 +40,10 @@ Planner responses include `itinerary`. UI copy should prefer itinerary fields
 when explaining what the user should do. Decision 0008 later fixes the user
 destination to `구미역` and removes destination entry from the home screen.
 
-The home search form may populate the origin place through Kakao Maps keyword
-search when `NEXT_PUBLIC_KAKAO_MAP_APP_KEY` is configured. Those selected place
+The home search form populates the origin place through Kakao map-click
+coordinates when `NEXT_PUBLIC_KAKAO_MAP_APP_KEY` is configured. Those selected
 coordinates are carried through the request and response as origin-place
-metadata only. They do not yet change the selected boarding stop.
+metadata.
 
 The first implementation remains demo-route scoped. It does not yet add browser
 geolocation, address geocoding, stop candidate search, route ranking, or a
@@ -58,8 +58,7 @@ general multimodal planner.
 - Future current-location work has a clear extension point: replace the fixed
   `boardingStop` with a selected nearby stop while preserving the itinerary
   response shape.
-- A selected Kakao place can make the displayed origin more precise, but the app
-  must warn that the demo boarding stop is still fixed until nearby-stop
-  selection exists.
+- A selected map coordinate can make the displayed origin more precise and gives
+  dynamic nearby-stop selection a stable input.
 - Existing callers can continue using `effectiveInput`, `plans`, `source`,
   `tago`, and `timetable` while migrating to `itinerary`.

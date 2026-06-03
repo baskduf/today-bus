@@ -41,6 +41,8 @@ export type TagoRoute = {
 };
 
 export type TagoStop = {
+  dist?: number | string;
+  distance?: number | string;
   gpslati?: number;
   gpslong?: number;
   nodeid: string;
@@ -51,6 +53,14 @@ export type TagoStop = {
 export type TagoRouteStop = TagoStop & {
   nodeord: number;
   routeid: string;
+};
+
+export type TagoStopRoute = {
+  endnodenm?: string;
+  routeid: string;
+  routeno: number | string;
+  routetp?: string;
+  startnodenm?: string;
 };
 
 export type TagoArrival = {

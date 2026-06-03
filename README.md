@@ -3,8 +3,9 @@
 `today-bus` is a small Next.js app used to dogfood repository-level harness
 engineering for coding agents.
 
-The product is `구미역 기차 언제 타지?`: users enter a train departure time and a
-starting place, and the app recommends when to leave for Gumi Station.
+The product is `구미역 기차 언제 타지?`: users pick a starting coordinate on a
+map, enter a future train departure time, and the app recommends when to leave
+for Gumi Station.
 
 The dogfood goal is stricter than shipping the UI. Meaningful agent changes
 should leave a verifiable trail through local checks, focused planner tests,
@@ -15,7 +16,8 @@ decision memory, and failure memory when needed.
 This repository checks whether the harness catches real agent-work risks:
 
 - implementation diffs that may need decision memory
-- planner regressions across TAGO, Gumi BIS timetable, and mock fallback paths
+- planner regressions across coordinate-based direct route, TAGO, Gumi BIS
+  timetable, and mock fallback paths
 - drift from the Next.js App Router, npm workflow, and shared UI components
 - missing failure records for runtime, provider, or cross-environment bugs
 - unsafe external API handling such as secret leakage or live/mock confusion
@@ -68,7 +70,7 @@ node scripts/check-harness.mjs
 ```
 
 Use `npm run test:planner` directly for quick deterministic checks of planner
-branch behavior.
+branch behavior, including coordinate-based direct route candidate selection.
 
 ## Decision Warnings
 

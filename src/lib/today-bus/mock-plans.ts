@@ -226,22 +226,27 @@ function parseOriginSource(value: string | undefined) {
   return value === "kakao_keyword" || value === "manual" ? value : undefined;
 }
 
-function parseTodayClock(value: string | undefined) {
-  const match = value?.match(/^오늘\s+(\d{1,2}):(\d{2})$/);
-  if (!match) return undefined;
+const minutesPerDay = 24 * 60;
+const seoulTimeZone = "Asia/Seoul";
 
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
-  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return undefined;
+type RelativeClock = {
+  dayOffset: 0 | 1;
+  minutes: number;
+};
 
-  return hour * 60 + minute;
-}
+function parseRelativeClock(value: string | undefined): RelativeClock | undefined {
+  const datedMatch = value?.match(/^(오늘|내일)\s+(\d{1,2}):(\d{2})$/);
+  if (datedMatch) {
+    const hour = Number(datedMatch[2]);
+    const minute = Number(datedMatch[3]);
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return undefined;
 
-function parseClockInput(value: string | undefined) {
-  return parseTodayClock(value) ?? parseClockOnly(value);
-}
+    return {
+      dayOffset: datedMatch[1] === "내일" ? 1 : 0,
+      minutes: hour * 60 + minute,
+    };
+  }
 
-function parseClockOnly(value: string | undefined) {
   const match = value?.match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return undefined;
 
@@ -249,57 +254,95 @@ function parseClockOnly(value: string | undefined) {
   const minute = Number(match[2]);
   if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return undefined;
 
-  return hour * 60 + minute;
+  return {
+    dayOffset: 0,
+    minutes: hour * 60 + minute,
+  };
 }
 
-function formatTodayClock(totalMinutes: number) {
-  const normalized = ((totalMinutes % 1440) + 1440) % 1440;
+function getKstMinutesOfDay(now: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    hour: "2-digit",
+    hour12: false,
+    minute: "2-digit",
+    timeZone: seoulTimeZone,
+  }).formatToParts(now);
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
+
+  return (Number(values.hour) % 24) * 60 + Number(values.minute);
+}
+
+function getRelativeTotalMinutes(clock: RelativeClock) {
+  return clock.dayOffset * minutesPerDay + clock.minutes;
+}
+
+function formatRelativeClock(totalMinutes: number) {
+  const dayOffset = totalMinutes >= minutesPerDay ? 1 : 0;
+  const normalized = ((totalMinutes % minutesPerDay) + minutesPerDay) % minutesPerDay;
   const hour = Math.floor(normalized / 60);
   const minute = normalized % 60;
+  const dayLabel = dayOffset === 1 ? "내일" : "오늘";
 
-  return `오늘 ${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  return `${dayLabel} ${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 export function formatClockOnly(value: string | undefined) {
-  const minutes = parseClockInput(value);
-  if (minutes === undefined) return undefined;
+  const clock = parseRelativeClock(value);
+  if (!clock) return undefined;
 
-  const hour = Math.floor(minutes / 60);
-  const minute = minutes % 60;
+  const hour = Math.floor(clock.minutes / 60);
+  const minute = clock.minutes % 60;
 
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-export function normalizeTrainDepartureTime(value: string | undefined) {
-  const minutes = parseClockInput(value);
-  return minutes === undefined ? undefined : formatTodayClock(minutes);
+export function normalizeTrainDepartureTime(
+  value: string | undefined,
+  now = new Date(),
+) {
+  const clock = parseRelativeClock(value);
+  if (!clock) return undefined;
+
+  let totalMinutes = getRelativeTotalMinutes(clock);
+  if (clock.dayOffset === 0 && totalMinutes <= getKstMinutesOfDay(now)) {
+    totalMinutes += minutesPerDay;
+  }
+
+  return formatRelativeClock(totalMinutes);
 }
 
 export function createStationArrivalTime(
   trainDeparture: string,
   buffer: string,
 ) {
-  const departureMinutes = parseClockInput(trainDeparture);
+  const departure = parseRelativeClock(trainDeparture);
   const bufferMinutes = Number(buffer);
 
   if (
-    departureMinutes === undefined ||
+    !departure ||
     !Number.isFinite(bufferMinutes) ||
-    bufferMinutes < 0 ||
-    departureMinutes - bufferMinutes < 0
+    bufferMinutes < 0
   ) {
     return undefined;
   }
 
-  return formatTodayClock(departureMinutes - bufferMinutes);
+  const arrivalTotalMinutes = getRelativeTotalMinutes(departure) - bufferMinutes;
+  if (arrivalTotalMinutes < 0) return undefined;
+
+  return formatRelativeClock(arrivalTotalMinutes);
 }
 
-export function resolveTripInput(params: TripSearchParams = {}): TripInput {
+export function resolveTripInput(
+  params: TripSearchParams = {},
+  now = new Date(),
+): TripInput {
   const originSource = parseOriginSource(firstValue(params.originSource));
   const rawTrainDeparture =
     firstValue(params.trainDeparture) ?? tripDefaults.trainDeparture;
   const trainDeparture =
-    normalizeTrainDepartureTime(rawTrainDeparture) ?? rawTrainDeparture;
+    normalizeTrainDepartureTime(rawTrainDeparture, now) ?? rawTrainDeparture;
   const buffer = firstValue(params.buffer) ?? tripDefaults.buffer;
 
   return {

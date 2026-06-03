@@ -3,6 +3,11 @@ export type TodayBusOriginPlaceSource =
   | "kakao_keyword"
   | "manual";
 
+export type TodayBusPlanningMode =
+  | "demo_fixed"
+  | "dynamic_direct"
+  | "mock";
+
 export type TodayBusItinerary = {
   alightingStop: {
     name: string;
@@ -11,6 +16,7 @@ export type TodayBusItinerary = {
     stopOrder: number;
   };
   boardingStop: {
+    distanceMeters?: number;
     name: string;
     nodeId: string;
     stopNo: string;
@@ -27,6 +33,11 @@ export type TodayBusItinerary = {
     lat?: number;
     lng?: number;
     source: TodayBusOriginPlaceSource;
+  };
+  planning?: {
+    candidateCount: number;
+    mode: TodayBusPlanningMode;
+    selectionReason: string;
   };
   route: {
     directionLabel: string;

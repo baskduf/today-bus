@@ -14,6 +14,11 @@ import {
   todayBusDemoItinerary,
   type TagoDemoSnapshot,
 } from "@/lib/transit/tago-provider";
+import {
+  getDirectRouteCandidates,
+  type DirectRouteCandidate,
+  type DirectRoutePlanningResult,
+} from "@/lib/transit/direct-route-planner";
 import type {
   TodayBusItinerary,
   TodayBusOriginPlaceSource,
@@ -49,6 +54,15 @@ export type TodayBusPlanResponse = {
   recommendedPlan: BusPlan;
   requestedInput: TripInput;
   source: TodayBusPlanSource;
+  direct?: {
+    candidateCount: number;
+    checkedAt: string;
+    nearbyStopCount: number;
+    routeCandidateCount: number;
+    selectedOriginNodeId: string;
+    selectedRouteId: string;
+    selectedRouteNo: string;
+  };
   tago?: {
     arrivalCount: number;
     checkedAt: string;
@@ -76,14 +90,16 @@ export type TodayBusPlanResponse = {
   warnings: string[];
 };
 
-const homeWalkMinutes =
-  todayBusDemoItinerary.boardingStop.walkMinutesFromOrigin;
 const stopWaitMinutes = 5;
 const busRideMinutes = 28;
-const destinationWalkMinutes =
-  todayBusDemoItinerary.destinationPlace.walkMinutesFromAlightingStop;
 const kstOffsetHours = 9;
 const seoulTimeZone = "Asia/Seoul";
+
+type PlanRouteContext = {
+  busRideMinutes: number;
+  itinerary: TodayBusItinerary;
+  originOffsetMinutes: number;
+};
 
 function parseCoordinate(value: string | undefined) {
   if (!value) return undefined;
@@ -123,6 +139,78 @@ function createItinerary(input: TripInput): TodayBusItinerary {
   };
 }
 
+function createDemoRouteContext(): PlanRouteContext {
+  return {
+    busRideMinutes,
+    itinerary: createItinerary({
+      ...tripDefaults,
+      trainDeparture: tripDefaults.trainDeparture,
+    }),
+    originOffsetMinutes: getEstimatedOriginOffsetMinutes(),
+  };
+}
+
+function createDirectRouteContext(
+  candidate: DirectRouteCandidate,
+): PlanRouteContext {
+  return {
+    busRideMinutes: candidate.busRideMinutes,
+    itinerary: candidate.itinerary,
+    originOffsetMinutes: candidate.originOffsetMinutes,
+  };
+}
+
+function createDirectMeta(
+  result: DirectRoutePlanningResult,
+  candidate: DirectRouteCandidate,
+): TodayBusPlanResponse["direct"] {
+  return {
+    candidateCount: result.candidateCount,
+    checkedAt: result.checkedAt,
+    nearbyStopCount: result.nearbyStopCount,
+    routeCandidateCount: result.routeCandidateCount,
+    selectedOriginNodeId: candidate.itinerary.boardingStop.nodeId,
+    selectedRouteId: candidate.itinerary.route.tagoRouteId,
+    selectedRouteNo: candidate.itinerary.route.routeNo,
+  };
+}
+
+function createDirectTagoMeta(
+  candidate: DirectRouteCandidate,
+): TodayBusPlanResponse["tago"] {
+  return {
+    arrivalCount: candidate.arrivals.length,
+    checkedAt: candidate.checkedAt,
+    cityCode: tagoDemoIdentifiers.cityCode,
+    destinationNodeId: candidate.itinerary.alightingStop.nodeId,
+    originNodeId: candidate.itinerary.boardingStop.nodeId,
+    routeId: candidate.itinerary.route.tagoRouteId,
+    routeNo: candidate.itinerary.route.routeNo,
+  };
+}
+
+function createDirectOriginPlace(input: TripInput) {
+  const lat = parseCoordinate(input.originLat);
+  const lng = parseCoordinate(input.originLng);
+
+  if (lat === undefined || lng === undefined) return undefined;
+  const source: "kakao_keyword" | "manual" =
+    getOriginPlaceSource(input.originSource) === "kakao_keyword"
+      ? "kakao_keyword"
+      : "manual";
+
+  return {
+    address: input.originAddress,
+    label:
+      input.originPlaceName?.trim() ||
+      input.origin.trim() ||
+      todayBusDemoItinerary.originPlace.label,
+    lat,
+    lng,
+    source,
+  };
+}
+
 function hasCustomOriginPlace(input: TripInput) {
   const itinerary = createItinerary(input);
 
@@ -136,8 +224,15 @@ function hasCustomOriginPlace(input: TripInput) {
 
 function createCustomOriginWarning(input: TripInput) {
   const itinerary = createItinerary(input);
+  const hasCoordinates =
+    parseCoordinate(input.originLat) !== undefined &&
+    parseCoordinate(input.originLng) !== undefined;
 
-  return `출발 위치는 ${itinerary.originPlace.label}입니다. 현재 탑승 정류장 자동 선택은 아직 지원하지 않아 ${todayBusDemoItinerary.boardingStop.name} 정류장 기준으로 계산합니다.`;
+  if (hasCoordinates) {
+    return `출발 위치는 ${itinerary.originPlace.label}입니다. 좌표 기준 구미역 직행 버스 후보를 찾지 못해 ${todayBusDemoItinerary.boardingStop.name} 정류장 기준으로 계산합니다.`;
+  }
+
+  return `출발 위치는 ${itinerary.originPlace.label}입니다. 지도에서 출발 좌표를 선택하지 않아 ${todayBusDemoItinerary.boardingStop.name} 정류장 기준으로 계산합니다.`;
 }
 
 function getKstDateParts(date: Date) {
@@ -176,17 +271,21 @@ function createKstDate({
   );
 }
 
-function parseTodayArrival(input: TripInput, now = new Date()) {
-  const match = input.arrival.match(/^오늘\s+(\d{1,2}):(\d{2})$/);
+function parseStationArrival(input: TripInput, now = new Date()) {
+  const match = input.arrival.match(/^(오늘|내일)\s+(\d{1,2}):(\d{2})$/);
   if (!match) return undefined;
 
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
+  const dayOffset = match[1] === "내일" ? 1 : 0;
+  const hour = Number(match[2]);
+  const minute = Number(match[3]);
 
   if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return undefined;
 
+  const dateParts = getKstDateParts(now);
+
   return createKstDate({
-    ...getKstDateParts(now),
+    ...dateParts,
+    day: dateParts.day + dayOffset,
     hour,
     minute,
   });
@@ -331,7 +430,13 @@ function createLivePlan(
   snapshot: TagoDemoSnapshot,
   desiredArrivalTime: Date,
   now = new Date(),
+  context: PlanRouteContext = createDemoRouteContext(),
 ): BusPlan | undefined {
+  const itinerary = context.itinerary;
+  const routeHomeWalkMinutes = itinerary.boardingStop.walkMinutesFromOrigin;
+  const routeBusRideMinutes = context.busRideMinutes;
+  const routeDestinationWalkMinutes =
+    itinerary.destinationPlace.walkMinutesFromAlightingStop;
   const arrivalCandidates = snapshot.arrivals
     .map((arrival) => ({ arrival, seconds: getArrivalSeconds(arrival) }))
     .filter(
@@ -347,10 +452,10 @@ function createLivePlan(
   const busStopArrival = addMinutes(boarding, -stopWaitMinutes);
   const departure = addMinutes(
     boarding,
-    -(homeWalkMinutes + stopWaitMinutes),
+    -(routeHomeWalkMinutes + stopWaitMinutes),
   );
-  const dropOff = addMinutes(boarding, busRideMinutes);
-  const destinationArrival = addMinutes(dropOff, destinationWalkMinutes);
+  const dropOff = addMinutes(boarding, routeBusRideMinutes);
+  const destinationArrival = addMinutes(dropOff, routeDestinationWalkMinutes);
   const stationBufferMinutes = parseStationBufferMinutes(input);
   const slackMinutes = getSlackMinutes(destinationArrival, desiredArrivalTime);
   const status = classifyPlan(slackMinutes, stationBufferMinutes);
@@ -362,7 +467,9 @@ function createLivePlan(
     ...recommendedPlan,
     arrivalTime: formatTime(destinationArrival),
     boardingTime: formatTime(boarding),
-    busStopName: todayBusDemoItinerary.boardingStop.name,
+    busNumber: `${itinerary.route.routeNo}번`,
+    busRideMinutes: routeBusRideMinutes,
+    busStopName: itinerary.boardingStop.name,
     busStopArrivalTime: formatTime(busStopArrival),
     departureTime: formatTime(departure),
     dropOffTime: formatTime(dropOff),
@@ -379,27 +486,27 @@ function createLivePlan(
     summaryLine: `대기 ${stopWaitMinutes}분 · ${formatSlackSummary(slackMinutes)}`,
     timeline: [
       {
-        detail: `${todayBusDemoItinerary.boardingStop.name} 정류장까지 도보 ${homeWalkMinutes}분`,
+        detail: `${itinerary.boardingStop.name} 정류장까지 도보 ${routeHomeWalkMinutes}분`,
         kind: "home",
         label: "집에서 출발",
         time: formatTime(departure),
       },
       {
-        detail: `정류장번호 ${todayBusDemoItinerary.boardingStop.stopNo} · ${stopWaitMinutes}분 대기`,
+        detail: `정류장번호 ${itinerary.boardingStop.stopNo} · ${stopWaitMinutes}분 대기`,
         kind: "stop",
-        label: `${todayBusDemoItinerary.boardingStop.name} 도착`,
+        label: `${itinerary.boardingStop.name} 도착`,
         time: formatTime(busStopArrival),
       },
       {
-        detail: `약 ${busRideMinutes}분 이동 · ${todayBusDemoItinerary.alightingStop.name} 하차`,
+        detail: `약 ${routeBusRideMinutes}분 이동 · ${itinerary.alightingStop.name} 하차`,
         kind: "bus",
-        label: `${tagoDemoIdentifiers.routeNo}번 ${todayBusDemoItinerary.route.directionLabel} 탑승`,
+        label: `${itinerary.route.routeNo}번 ${itinerary.route.directionLabel} 탑승`,
         time: formatTime(boarding),
       },
       {
-        detail: `${todayBusDemoItinerary.destinationPlace.label}까지 도보 ${destinationWalkMinutes}분`,
+        detail: `${itinerary.destinationPlace.label}까지 도보 ${routeDestinationWalkMinutes}분`,
         kind: "walk",
-        label: `${todayBusDemoItinerary.alightingStop.name} 하차`,
+        label: `${itinerary.alightingStop.name} 하차`,
         time: formatTime(dropOff),
       },
       {
@@ -409,7 +516,7 @@ function createLivePlan(
           stationBufferMinutes,
         ),
         kind: "arrival",
-        label: `${todayBusDemoItinerary.destinationPlace.label} 도착`,
+        label: `${itinerary.destinationPlace.label} 도착`,
         time: formatTime(destinationArrival),
       },
     ],
@@ -429,18 +536,22 @@ type TimetableCandidate = {
 };
 
 function createTimetableCandidates({
+  context,
   desiredArrivalTime,
   entries,
   input,
-  originOffsetMinutes,
 }: {
+  context: PlanRouteContext;
   desiredArrivalTime: Date;
   entries: GumiBisTimetableEntry[];
   input: TripInput;
-  originOffsetMinutes: number;
 }) {
   const stationBufferMinutes = parseStationBufferMinutes(input);
   const kstDateParts = getKstDateParts(desiredArrivalTime);
+  const routeHomeWalkMinutes =
+    context.itinerary.boardingStop.walkMinutesFromOrigin;
+  const routeDestinationWalkMinutes =
+    context.itinerary.destinationPlace.walkMinutesFromAlightingStop;
 
   return entries
     .reduce<TimetableCandidate[]>((candidates, entry) => {
@@ -451,14 +562,14 @@ function createTimetableCandidates({
         ...kstDateParts,
         ...clockTime,
       });
-      const boardingTime = addMinutes(routeStartTime, originOffsetMinutes);
+      const boardingTime = addMinutes(routeStartTime, context.originOffsetMinutes);
       const busStopArrivalTime = addMinutes(boardingTime, -stopWaitMinutes);
       const departureTime = addMinutes(
         boardingTime,
-        -(homeWalkMinutes + stopWaitMinutes),
+        -(routeHomeWalkMinutes + stopWaitMinutes),
       );
-      const dropOffTime = addMinutes(boardingTime, busRideMinutes);
-      const arrivalTime = addMinutes(dropOffTime, destinationWalkMinutes);
+      const dropOffTime = addMinutes(boardingTime, context.busRideMinutes);
+      const arrivalTime = addMinutes(dropOffTime, routeDestinationWalkMinutes);
       const slackMinutes = getSlackMinutes(arrivalTime, desiredArrivalTime);
 
       candidates.push({
@@ -491,24 +602,29 @@ function chooseRecommendedTimetableIndex(candidates: TimetableCandidate[]) {
 
 function createTimetableBusPlan({
   candidate,
+  context,
   input,
   isPrimary,
   label,
   missedDelayMinutes,
 }: {
   candidate: TimetableCandidate;
+  context: PlanRouteContext;
   input: TripInput;
   isPrimary: boolean;
   label: string;
   missedDelayMinutes?: number;
 }): BusPlan {
+  const itinerary = context.itinerary;
   const stationBufferMinutes = parseStationBufferMinutes(input);
 
   return {
     ...recommendedPlan,
     arrivalTime: formatTime(candidate.arrivalTime),
     boardingTime: formatTime(candidate.boardingTime),
-    busStopName: todayBusDemoItinerary.boardingStop.name,
+    busNumber: `${itinerary.route.routeNo}번`,
+    busRideMinutes: context.busRideMinutes,
+    busStopName: itinerary.boardingStop.name,
     busStopArrivalTime: formatTime(candidate.busStopArrivalTime),
     departureTime: formatTime(candidate.departureTime),
     detailHrefId: isPrimary
@@ -542,15 +658,15 @@ function createTimetableBusPlan({
         )} 도착`,
     timeline: [
       {
-        detail: `${todayBusDemoItinerary.boardingStop.name} 정류장까지 도보 ${homeWalkMinutes}분`,
+        detail: `${itinerary.boardingStop.name} 정류장까지 도보 ${itinerary.boardingStop.walkMinutesFromOrigin}분`,
         kind: "home",
         label: "집에서 출발",
         time: formatTime(candidate.departureTime),
       },
       {
-        detail: `정류장번호 ${todayBusDemoItinerary.boardingStop.stopNo} · ${stopWaitMinutes}분 대기`,
+        detail: `정류장번호 ${itinerary.boardingStop.stopNo} · ${stopWaitMinutes}분 대기`,
         kind: "stop",
-        label: `${todayBusDemoItinerary.boardingStop.name} 도착`,
+        label: `${itinerary.boardingStop.name} 도착`,
         time: formatTime(candidate.busStopArrivalTime),
       },
       {
@@ -558,13 +674,13 @@ function createTimetableBusPlan({
           candidate.routeStartTime,
         )} 출발표 기준 · 정류장 통과 추정`,
         kind: "bus",
-        label: `${tagoDemoIdentifiers.routeNo}번 ${todayBusDemoItinerary.route.directionLabel} 탑승`,
+        label: `${itinerary.route.routeNo}번 ${itinerary.route.directionLabel} 탑승`,
         time: formatTime(candidate.boardingTime),
       },
       {
-        detail: `${todayBusDemoItinerary.destinationPlace.label}까지 도보 ${destinationWalkMinutes}분`,
+        detail: `${itinerary.destinationPlace.label}까지 도보 ${itinerary.destinationPlace.walkMinutesFromAlightingStop}분`,
         kind: "walk",
-        label: `${todayBusDemoItinerary.alightingStop.name} 하차`,
+        label: `${itinerary.alightingStop.name} 하차`,
         time: formatTime(candidate.dropOffTime),
       },
       {
@@ -574,7 +690,7 @@ function createTimetableBusPlan({
           stationBufferMinutes,
         ),
         kind: "arrival",
-        label: `${todayBusDemoItinerary.destinationPlace.label} 도착`,
+        label: `${itinerary.destinationPlace.label} 도착`,
         time: formatTime(candidate.arrivalTime),
       },
     ],
@@ -585,13 +701,13 @@ function createTimetablePlans(
   input: TripInput,
   desiredArrivalTime: Date,
   entries: GumiBisTimetableEntry[],
+  context: PlanRouteContext = createDemoRouteContext(),
 ) {
-  const originOffsetMinutes = getEstimatedOriginOffsetMinutes();
   const candidates = createTimetableCandidates({
+    context,
     desiredArrivalTime,
     entries,
     input,
-    originOffsetMinutes,
   });
   const recommendedIndex = chooseRecommendedTimetableIndex(candidates);
 
@@ -610,6 +726,7 @@ function createTimetablePlans(
     : undefined;
   const recommendedTimetablePlan = createTimetableBusPlan({
     candidate: recommendedCandidate,
+    context,
     input,
     isPrimary: true,
     label: "추천 플랜 A",
@@ -619,6 +736,7 @@ function createTimetablePlans(
     previousCandidate
       ? createTimetableBusPlan({
           candidate: previousCandidate,
+          context,
           input,
           isPrimary: false,
           label: "더 이른 플랜",
@@ -627,6 +745,7 @@ function createTimetablePlans(
     nextCandidate
       ? createTimetableBusPlan({
           candidate: nextCandidate,
+          context,
           input,
           isPrimary: false,
           label: "다음 플랜",
@@ -635,11 +754,12 @@ function createTimetablePlans(
   ].filter((plan): plan is BusPlan => plan !== undefined);
 
   return {
-    originOffsetMinutes,
+    originOffsetMinutes: context.originOffsetMinutes,
     plans: [recommendedTimetablePlan, ...alternativePlans],
     recoveryPlan: nextCandidate
       ? createTimetableBusPlan({
           candidate: nextCandidate,
+          context,
           input,
           isPrimary: false,
           label: "다음 플랜",
@@ -684,7 +804,9 @@ function createMockResponse(
 
 async function createTimetableResponse({
   checkedAt,
+  context = createDemoRouteContext(),
   desiredArrivalTime,
+  direct,
   getTimetable,
   requestedInput,
   tago,
@@ -692,7 +814,9 @@ async function createTimetableResponse({
   warnings,
 }: {
   checkedAt: Date;
+  context?: PlanRouteContext;
   desiredArrivalTime: Date;
+  direct?: TodayBusPlanResponse["direct"];
   getTimetable: typeof getGumiBisTimetable;
   requestedInput: TripInput;
   tago?: TodayBusPlanResponse["tago"];
@@ -701,13 +825,14 @@ async function createTimetableResponse({
 }): Promise<TodayBusPlanResponse | undefined> {
   const scheduleType = getGumiBisScheduleTypeForDate(desiredArrivalTime);
   const timetable = await getTimetable(
-    tagoDemoIdentifiers.timetableRouteId,
+    context.itinerary.route.timetableRouteId,
     scheduleType,
   );
   const timetablePlans = createTimetablePlans(
     requestedInput,
     desiredArrivalTime,
     timetable.rows,
+    context,
   );
 
   if (!timetablePlans) return undefined;
@@ -716,7 +841,8 @@ async function createTimetableResponse({
 
   return {
     effectiveInput: requestedInput,
-    itinerary: createItinerary(requestedInput),
+    direct,
+    itinerary: context.itinerary,
     plans: timetablePlans.plans,
     recoveryPlan: timetablePlans.recoveryPlan,
     recommendedPlan: timetablePlans.recommendedPlan,
@@ -728,8 +854,8 @@ async function createTimetableResponse({
       departureCount: timetable.rows.length,
       originOffsetMinutes: timetablePlans.originOffsetMinutes,
       provider: "gumi_bis",
-      routeId: tagoDemoIdentifiers.timetableRouteId,
-      routeNo: tagoDemoIdentifiers.routeNo,
+      routeId: context.itinerary.route.timetableRouteId,
+      routeNo: context.itinerary.route.routeNo,
       scheduleType,
     },
     train: createTrainMeta(requestedInput),
@@ -737,14 +863,104 @@ async function createTimetableResponse({
   };
 }
 
-export type TodayBusPlanDependencies = {
-  getDemoSnapshot: typeof getTagoDemoSnapshot;
+async function createDirectRouteResponse({
+  desiredArrivalTime,
+  getDirectCandidates,
+  getTimetable,
+  now,
+  requestedInput,
+  warnings,
+}: {
+  desiredArrivalTime: Date;
+  getDirectCandidates: typeof getDirectRouteCandidates;
   getTimetable: typeof getGumiBisTimetable;
-  now: () => Date;
+  now: Date;
+  requestedInput: TripInput;
+  warnings: string[];
+}): Promise<TodayBusPlanResponse | undefined> {
+  const originPlace = createDirectOriginPlace(requestedInput);
+  if (!originPlace) return undefined;
+
+  const directResult = await getDirectCandidates({
+    originPlace,
+  });
+  const selectedCandidate = directResult.candidates[0];
+
+  if (!selectedCandidate) {
+    warnings.push(
+      `출발지 주변 ${directResult.nearbyStopCount}개 정류장에서 구미역 방향 직행 버스를 찾지 못해 기존 데모 정류장 기준으로 확인합니다.`,
+    );
+    return undefined;
+  }
+
+  const context = createDirectRouteContext(selectedCandidate);
+  const direct = createDirectMeta(directResult, selectedCandidate);
+  const tago = createDirectTagoMeta(selectedCandidate);
+  const snapshot = {
+    arrivals: selectedCandidate.arrivals,
+    checkedAt: selectedCandidate.checkedAt,
+    routeStops: selectedCandidate.routeStops,
+  } satisfies TagoDemoSnapshot;
+  const livePlan = createLivePlan(
+    requestedInput,
+    snapshot,
+    desiredArrivalTime,
+    now,
+    context,
+  );
+
+  if (livePlan && livePlan.status !== "too_early") {
+    warnings.push(
+      "출발 좌표 기준으로 주변 정류장과 구미역 방향 직행 버스를 계산했습니다.",
+    );
+
+    return {
+      direct,
+      effectiveInput: requestedInput,
+      itinerary: context.itinerary,
+      plans: [livePlan],
+      recoveryPlan: livePlan,
+      recommendedPlan: livePlan,
+      requestedInput,
+      source: "tago",
+      tago,
+      train: createTrainMeta(requestedInput),
+      warnings,
+    };
+  }
+
+  warnings.push(
+    livePlan
+      ? "출발 좌표 기준 TAGO 첫 도착은 기차 시간보다 너무 이른 플랜이라 공식 시간표를 확인합니다."
+      : "출발 좌표 기준 직행 버스의 TAGO 실시간 도착정보가 없어 공식 시간표를 확인합니다.",
+  );
+
+  const timetableResponse = await createTimetableResponse({
+    checkedAt: now,
+    context,
+    desiredArrivalTime,
+    direct,
+    getTimetable,
+    requestedInput,
+    tago,
+    timetableWarning:
+      "출발 좌표 기준 직행 후보를 구미 BIS 공식 시간표와 정류장 통과 추정으로 계산했습니다.",
+    warnings,
+  });
+
+  return timetableResponse;
+}
+
+export type TodayBusPlanDependencies = {
+  getDemoSnapshot?: typeof getTagoDemoSnapshot;
+  getDirectRouteCandidates?: typeof getDirectRouteCandidates;
+  getTimetable?: typeof getGumiBisTimetable;
+  now?: () => Date;
 };
 
 const defaultPlanDependencies: TodayBusPlanDependencies = {
   getDemoSnapshot: getTagoDemoSnapshot,
+  getDirectRouteCandidates: getDirectRouteCandidates,
   getTimetable: getGumiBisTimetable,
   now: () => new Date(),
 };
@@ -753,23 +969,50 @@ export async function createTodayBusPlanResponseWithDependencies(
   requestedInput: TripInput,
   dependencies: TodayBusPlanDependencies,
 ): Promise<TodayBusPlanResponse> {
+  const planDependencies = {
+    getDemoSnapshot:
+      dependencies.getDemoSnapshot ?? defaultPlanDependencies.getDemoSnapshot!,
+    getDirectRouteCandidates:
+      dependencies.getDirectRouteCandidates ??
+      defaultPlanDependencies.getDirectRouteCandidates!,
+    getTimetable:
+      dependencies.getTimetable ?? defaultPlanDependencies.getTimetable!,
+    now: dependencies.now ?? defaultPlanDependencies.now!,
+  };
   const warnings: string[] = [];
-  const now = dependencies.now();
-  const desiredArrivalTime = parseTodayArrival(requestedInput, now);
-
-  if (hasCustomOriginPlace(requestedInput)) {
-    warnings.push(createCustomOriginWarning(requestedInput));
-  }
+  const now = planDependencies.now();
+  const desiredArrivalTime = parseStationArrival(requestedInput, now);
 
   if (!desiredArrivalTime) {
     const fallback = {
       message:
-        "현재는 '오늘 HH:mm' 형식의 당일 기차 출발 시간만 해석합니다. mock 플랜을 보여줍니다.",
+        "현재는 '오늘/내일 HH:mm' 형식의 기차 출발 시간만 해석합니다. mock 플랜을 보여줍니다.",
       reason: "future_planning_not_supported",
     } satisfies TodayBusFallback;
 
     warnings.push(fallback.message);
     return createMockResponse(requestedInput, warnings, undefined, fallback);
+  }
+
+  try {
+    const directResponse = await createDirectRouteResponse({
+      desiredArrivalTime,
+      getDirectCandidates: planDependencies.getDirectRouteCandidates,
+      getTimetable: planDependencies.getTimetable,
+      now,
+      requestedInput,
+      warnings,
+    });
+
+    if (directResponse) return directResponse;
+  } catch (error) {
+    warnings.push(
+      `출발 좌표 기반 직행 버스 계산 실패로 기존 데모 정류장 기준을 확인합니다: ${getSafeTagoErrorMessage(error)}`,
+    );
+  }
+
+  if (hasCustomOriginPlace(requestedInput)) {
+    warnings.push(createCustomOriginWarning(requestedInput));
   }
 
   let tago: TodayBusPlanResponse["tago"] | undefined;
@@ -778,7 +1021,7 @@ export async function createTodayBusPlanResponseWithDependencies(
     "구미 BIS 공식 시간표와 정류장 통과 추정으로 계산했습니다.";
 
   try {
-    const snapshot = await dependencies.getDemoSnapshot();
+    const snapshot = await planDependencies.getDemoSnapshot();
     tago = {
       arrivalCount: snapshot.arrivals.length,
       checkedAt: snapshot.checkedAt,
@@ -838,9 +1081,9 @@ export async function createTodayBusPlanResponseWithDependencies(
 
   try {
     const timetableResponse = await createTimetableResponse({
-      checkedAt: dependencies.now(),
+      checkedAt: planDependencies.now(),
       desiredArrivalTime,
-      getTimetable: dependencies.getTimetable,
+      getTimetable: planDependencies.getTimetable,
       requestedInput,
       tago,
       timetableWarning,

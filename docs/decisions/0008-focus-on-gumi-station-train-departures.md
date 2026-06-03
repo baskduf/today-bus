@@ -20,9 +20,10 @@ Position the product as `구미역 기차 언제 타지?`.
 The planning input now treats `구미역` as the fixed destination station. The home
 screen asks for:
 
-- `trainDeparture`: the train departure time, currently in `오늘 HH:mm` format.
-- `origin`: the user's starting place, optionally refined by Kakao keyword
-  search metadata.
+- `trainDeparture`: the train departure time, normalized to the next future
+  `오늘 HH:mm` or `내일 HH:mm` value.
+- `origin`: the user's starting place, selected from a map coordinate on the
+  home screen and carried with optional address metadata.
 - `buffer`: minutes before the train departure when the user wants to be at
   Gumi Station.
 
@@ -48,5 +49,6 @@ The existing demo route remains:
   boundaries stay intact.
 - URL state and `POST /api/plans` prefer `trainDeparture` but keep `arrival` as
   the internal station-arrival deadline for compatibility.
-- The app still does not support arbitrary destinations, automatic nearby-stop
-  selection, train timetable lookup, or cross-day train departures.
+- The app still does not support arbitrary destinations, train timetable lookup,
+  or train departures beyond the next-day rollover used to keep selected times
+  in the future.

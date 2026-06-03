@@ -32,10 +32,17 @@ Detailed functions:
 - `/getSttnThrghRouteList`: List routes passing through a stop.
 - `/getCtyCodeList`: List supported city codes.
 
+Parameter note:
+
+- `/getSttnThrghRouteList` must receive the stop id as `nodeid`, not `nodeId`.
+  Using `nodeId` can cause TAGO to ignore the stop filter and return city-wide
+  route results, which can trigger rate limits during coordinate route search.
+
 Today-Bus use:
 
 - Find Gumi `cityCode`.
 - Find `nodeId` for 진평중학교 정류장.
+- Find nearby origin-stop candidates from selected origin coordinates.
 - Find candidate destination stop IDs near 구미역.
 - Confirm which routes pass through the selected stop.
 
@@ -53,10 +60,17 @@ Detailed functions:
 - `/getRouteAcctoThrghSttnList`: List stops passed by a route.
 - `/getCtyCodeList`: List supported city codes.
 
+Parameter note:
+
+- `/getRouteAcctoThrghSttnList` currently works with `routeId`; `routeid`
+  returns empty results in local smoke checks.
+
 Today-Bus use:
 
 - Resolve Gumi route number `180` to a route ID.
 - Confirm the stop order for 진평중학교 정류장 to 구미역 direction.
+- Confirm route direction from a coordinate-selected origin stop to a managed
+  Gumi Station destination stop.
 - Build a route-stop cache for the demo route.
 
 ### Bus Arrival Information
@@ -195,23 +209,35 @@ Request shape:
   "originAddress": "경북 구미시 인동20길 46",
   "originLat": "36.1001",
   "originLng": "128.4301",
-  "originSource": "kakao_keyword",
-  "trainDeparture": "오늘 14:10",
+  "originSource": "manual",
+  "trainDeparture": "내일 14:10",
   "stationBufferMinutes": 10
 }
 ```
 
 The `originPlaceName`, `originAddress`, `originLat`, `originLng`, and
 `originSource` fields are optional. They can be populated by the home page's
-Kakao Maps keyword search when `NEXT_PUBLIC_KAKAO_MAP_APP_KEY` is configured.
-They refine `itinerary.originPlace` only; the current demo still uses the fixed
-boarding stop `진평중학교입구건너`.
+Kakao Maps map-click coordinate selection when `NEXT_PUBLIC_KAKAO_MAP_APP_KEY`
+is configured.
+When valid coordinates are present, the server planner first attempts
+coordinate-based direct route planning:
+
+1. Search nearby TAGO stops around the selected origin coordinate.
+2. Read routes passing through those stops.
+3. Validate that a route reaches a managed Gumi Station-side destination stop
+   in the correct stop-order direction.
+4. Use route-specific TAGO arrivals, or Gumi BIS timetable fallback, to create
+   the departure plan.
+
+If no direct candidate is found or provider lookup fails, the planner warns and
+falls back to the existing fixed demo boarding stop `진평중학교입구건너`.
 
 The destination is fixed to `구미역`. `trainDeparture` is the preferred time
-input. The planner derives the internal station-arrival deadline as
-`trainDeparture - stationBufferMinutes`. Existing callers may still send
-`arrival` or `desiredArrivalTime`; those are treated as the already-derived Gumi
-Station arrival deadline.
+input and is normalized to the next future `오늘 HH:mm` or `내일 HH:mm` value.
+The planner derives the internal station-arrival deadline as `trainDeparture -
+stationBufferMinutes`. Existing callers may still send `arrival` or
+`desiredArrivalTime`; those are treated as the already-derived Gumi Station
+arrival deadline.
 
 Response shape should stay close to `src/lib/today-bus/mock-plans.ts` so the
 current UI can switch from mock data to backend data with minimal churn.
@@ -273,7 +299,7 @@ Fallback reasons:
   does not expose arbitrary destinations because the destination is fixed to
   `구미역`.
 - `future_planning_not_supported`: the requested train departure or derived
-  station-arrival deadline is not a supported same-day `오늘 HH:mm` value.
+  station-arrival deadline is not a supported `오늘/내일 HH:mm` value.
 - `no_arrival`: TAGO lookup succeeded, but the route-specific origin-stop
   arrival list is empty and no usable timetable plan was available.
 - `tago_error`: the public data API call failed or returned an error response.
