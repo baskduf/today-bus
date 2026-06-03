@@ -26,6 +26,7 @@
 - `src/components/` and `src/lib/design/`: added shared today-bus UI tokens, doodle icons, and sketch-style primitives.
 - `.harness/decision-memory-rules.json` and `scripts/check-harness.mjs`: added a non-failing decision-memory warning after `/harness update` refreshed the starter kit to `30a030573aa232dc71d876242621a665fbba8a86`.
 - `.harness/source.json`, `AGENTS.md`, `docs/checklists/verification-scripts.md`, and this report: recorded the `/harness update` to kit commit `94e416b354facffafead6bbb9691af1598139389` and adopted gate-placement reporting guidance.
+- `.harness/source.json`, `scripts/check-harness.mjs`, `docs/failures/`, `docs/checklists/decision-failure-memory.md`, and this report: recorded the `/harness update` to kit commit `fa76b7aa94506aa3ff2c9b256ee45368d418451b` and adopted failure-memory detection/prevention linkage.
 
 ## Existing Structures Reused
 
@@ -85,6 +86,10 @@ python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report
 ## Failure Memory
 
 - Recorded: none.
+- Detection or prevention check: `scripts/check-harness.mjs` now checks that
+  non-template `docs/failures/*.md` records name a concrete detection or
+  prevention check, and `npm run check:harness` runs that check in the normal
+  completion gate.
 - Skipped: no user-visible runtime failure, high-risk bug path, failed CI run, repeated agent mistake, or cross-environment mismatch was fixed during adoption.
 
 ## Documentation Updated

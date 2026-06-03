@@ -8,7 +8,13 @@
 
 External API parameter mismatch and provider rate-limit failure.
 
-## What Failed
+## Goal
+
+Coordinate-based direct route planning should query TAGO stop-route data with
+the endpoint-specific parameter shape, keep live lookup fan-out bounded, and
+avoid surfacing provider debug warnings as primary user-facing copy.
+
+## What Happened Or Was Tried
 
 Coordinate-based direct route planning called TAGO
 `/getSttnThrghRouteList` with `nodeId` for the stop-route lookup.
@@ -25,7 +31,7 @@ The user saw debug warnings like `TAGO request failed` on the result screen even
 though the base TAGO key, city lookup, demo route lookup, and Gumi BIS timetable
 fallback were working.
 
-## How It Was Detected
+## Why It Failed
 
 The user reported visible result-page warnings after selecting a map coordinate.
 Focused live checks showed:
@@ -36,7 +42,11 @@ Focused live checks showed:
 - `getSttnThrghRouteList` with `nodeid=GMB16` returned the expected 9 routes.
 - Direct route planning failed with HTTP `429` before the parameter fix.
 
-## Prevention Rule
+The provider endpoint does not treat `nodeId` and `nodeid` as interchangeable,
+and the incorrect parameter expanded a single-stop lookup into a city-wide route
+fan-out.
+
+## Current Replacement
 
 Use TAGO's endpoint-specific parameter casing exactly. Do not assume camelCase
 and lowercase variants are interchangeable.
@@ -51,11 +61,19 @@ For coordinate-based route search:
 - keep provider/debug warnings in the API response but do not render them as
   primary user-facing copy.
 
-## Verification
+## Detection Or Prevention Check
 
-- Live direct route check for `경상북도 구미시 인동20길 70` returned 6 direct
-  candidates instead of failing.
-- `POST /api/plans` for that coordinate returned `source: "tago"` with route
-  `187` from `강동병원앞` to `구미역(중앙시장)`.
-- `npm run test:planner`, including provider-boundary coverage for the
-  `nodeid` parameter.
+- `tests/nearby-stops-provider.test.mjs` asserts that
+  `/getSttnThrghRouteList` receives `nodeid`.
+- `tests/direct-route-planner.test.mjs` covers direct route lookup fan-out and
+  failed-stop skipping.
+- `npm run test:planner`
+- Focused live checks remain outside the default gate through
+  `node scripts/check-tago-backend.mjs` when provider state must be verified.
+
+## Agent Guidance
+
+For TAGO endpoints, preserve endpoint-specific parameter casing and add fixture
+coverage before relying on live smoke output. Keep live diagnostics focused and
+separate from `check:harness` unless maintainers decide they are stable enough
+for the default gate.

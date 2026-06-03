@@ -33,7 +33,8 @@ The local harness is intentionally small and repo-specific:
 - `docs/checklists/` holds focused checklists for external API work, decision
   memory, failure memory, and verification scripts.
 - `scripts/check-harness.mjs` checks structure, docs links, package-manager
-  drift, scratch files, design-system paths, and decision-memory warnings.
+  drift, scratch files, design-system paths, failure-memory detection links,
+  and decision-memory warnings.
 
 Known gaps:
 

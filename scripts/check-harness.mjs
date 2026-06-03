@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { lstat, readFile } from "node:fs/promises";
+import { lstat, readdir, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -69,6 +69,42 @@ const decisionMemoryQuestion =
   "Does this change user workflow, input contract, input semantics, state " +
   "normalization, API request or response shape, fallback policy, or displayed " +
   "decision criteria?";
+
+const requiredFailureRecordSections = [
+  "## Date Observed",
+  "## Failure Type",
+  "## Goal",
+  "## What Happened Or Was Tried",
+  "## Why It Failed",
+  "## Current Replacement",
+  "## Detection Or Prevention Check",
+  "## Agent Guidance",
+];
+
+const concreteFailureCheckPatterns = [
+  /\b(?:tests?|specs?|fixtures?|scripts?)\/[^\s,.;)]+/,
+  /`?\.github\/workflows\/[^\s,.;)`]+`?/,
+  /\b(?:npm|pnpm|yarn|bun)\s+run\s+[\w:./-]+/,
+  /\b(?:make|just)\s+[\w:./-]+/,
+  /\bnode\s+scripts?\/[^\s,.;)]+/,
+  /\bpython3?\s+(?:-m\s+[\w.:-]+|scripts?\/[^\s,.;)]+)/,
+  /\b(?:vitest|jest|eslint)\s+[\w/.:@-]+/,
+  /\bmanual review point\s+`?docs\/checklists\/[^\s,.;)`]+/,
+];
+
+const rejectedFailureDetectionPhrases = [
+  "no test has been added",
+  "no regression test",
+  "no fixture",
+  "not added yet",
+  "should be added",
+  "will be added",
+  "to be added",
+  "todo",
+];
+
+const failureCheckPathPattern =
+  /`?((?:tests?|specs?|fixtures?|scripts?|docs\/checklists)\/[^\s,;)`]+|\.github\/workflows\/[^\s,;)`]+)`?/gi;
 
 const failures = [];
 
@@ -156,6 +192,24 @@ function globToRegExp(pattern) {
 function matchesAny(relativePath, patterns) {
   const normalized = normalizeGitPath(relativePath);
   return patterns.some((pattern) => globToRegExp(pattern).test(normalized));
+}
+
+function sectionText(text, heading) {
+  if (!text.includes(heading)) {
+    return undefined;
+  }
+
+  return text.split(heading, 2)[1].split(/\n##\s+/, 2)[0];
+}
+
+function hasConcreteFailureCheck(section) {
+  return concreteFailureCheckPatterns.some((pattern) => pattern.test(section));
+}
+
+function referencedFailureCheckPaths(section) {
+  return [...section.matchAll(failureCheckPathPattern)]
+    .map((match) => match[1].replace(/[.)]+$/, ""))
+    .sort();
 }
 
 async function loadDecisionMemoryRules() {
@@ -274,6 +328,68 @@ async function checkDecisionMemoryWarning() {
   console.warn("- add or update a decision record");
   console.warn("- cite the existing ADR that covers the change");
   console.warn("- explain why no decision memory is needed");
+}
+
+async function checkFailureMemoryRecords() {
+  const failuresDir = path.join(root, "docs/failures");
+
+  if (!existsSync(failuresDir)) {
+    return;
+  }
+
+  const entries = await readdir(failuresDir, { withFileTypes: true });
+  const recordNames = entries
+    .filter(
+      (entry) =>
+        entry.isFile() &&
+        entry.name.endsWith(".md") &&
+        entry.name !== "README.md" &&
+        entry.name !== "000-template.md",
+    )
+    .map((entry) => entry.name)
+    .sort();
+
+  for (const recordName of recordNames) {
+    const relativePath = `docs/failures/${recordName}`;
+    const text = await readFile(path.join(root, relativePath), "utf8");
+
+    for (const section of requiredFailureRecordSections) {
+      if (!text.includes(section)) {
+        failures.push(`${relativePath} is missing required section: ${section}`);
+      }
+    }
+
+    const detectionSection = sectionText(
+      text,
+      "## Detection Or Prevention Check",
+    );
+    if (!detectionSection) {
+      continue;
+    }
+
+    const normalizedDetection = detectionSection.toLowerCase().replace(/\s+/g, " ");
+    for (const phrase of rejectedFailureDetectionPhrases) {
+      if (normalizedDetection.includes(phrase)) {
+        failures.push(
+          `${relativePath} has non-committal detection/prevention prose: ${phrase}`,
+        );
+      }
+    }
+
+    if (!hasConcreteFailureCheck(detectionSection)) {
+      failures.push(
+        `${relativePath} detection/prevention must name a concrete test, fixture, script, command, CI gate, or manual review point`,
+      );
+    }
+
+    for (const referencedPath of referencedFailureCheckPaths(detectionSection)) {
+      if (!existsSync(path.join(root, referencedPath))) {
+        failures.push(
+          `${relativePath} detection/prevention references missing local path: ${referencedPath}`,
+        );
+      }
+    }
+  }
 }
 
 async function checkPackageScripts() {
@@ -434,6 +550,7 @@ async function main() {
   await checkGitignore();
   await checkNextStructure();
   checkDesignSystem();
+  await checkFailureMemoryRecords();
   await checkMarkdownLinks();
   await checkDriftProneFiles();
   await checkDecisionMemoryWarning();
