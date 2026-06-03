@@ -1,7 +1,3 @@
-# today-bus
-
-`today-bus`는 `구미역으로 가자` 서비스를 테스트 베드로 사용하는
-repository harness dogfood 프로젝트입니다.
 
 ## 1. 서비스 소개
 
@@ -13,8 +9,6 @@ Next.js 앱입니다.
 입력합니다. 백엔드는 주변 정류장, 구미역 방향 노선, 실시간 버스 도착 정보,
 공식 시간표, 도보 시간을 조합해 추천 계획을 만듭니다.
 
-핵심 사용자 흐름:
-
 1. 출발 위치를 지도에서 선택한다.
 2. 기차 출발 날짜와 시간을 입력한다.
 3. 구미역 도착 전 필요한 여유 시간을 선택한다.
@@ -22,42 +16,13 @@ Next.js 앱입니다.
 
 ## 2. 서비스 이미지
 
-![구미역으로 가자 서비스 대표 이미지](public/bus-logo.jpg)
+<img width="490" height="773" alt="스크린샷 2026-06-03 오후 3 07 48" src="https://github.com/user-attachments/assets/65de6148-0004-439b-8ac6-a3daa80a8d3a" />
 
-로컬에서 실제 화면을 확인하려면:
-
-```bash
-npm install
-npm run dev
-```
-
-브라우저에서 [http://localhost:3000](http://localhost:3000)을 엽니다.
+<img width="490" height="773" alt="스크린샷 2026-06-03 오후 3 08 10" src="https://github.com/user-attachments/assets/d493f09e-0e3f-462a-8555-f9898982bc9a" />
 
 ## 3. 서비스 아키텍처
 
-```mermaid
-flowchart LR
-  User["사용자 입력\n출발 좌표 · 기차 날짜/시간 · 여유 시간"]
-  UI["Next.js App Router UI\nsrc/app"]
-  API["/api/plans\n요청 검증 · 입력 정규화"]
-  Time["시간 계산\nAsia/Seoul 기준\n구미역 도착 deadline"]
-  Search["경로 후보 탐색\n주변 정류장 · 구미역 방향 노선"]
-  Providers["외부/공공 데이터\nTAGO · Gumi BIS · TMAP · OpenRouteService"]
-  Planner["Planner 판단\nTAGO live → Gumi BIS timetable → mock fallback"]
-  Response["응답 생성\n추천 버스 · 출발 시간 · 정류장 · 경고"]
-
-  User --> UI --> API --> Time --> Search --> Providers --> Planner --> Response
-```
-
-백엔드 planner는 다음 순서로 동작합니다:
-
-1. `/api/plans`가 입력값을 검증하고 정규화한다.
-2. `Asia/Seoul` 기준으로 기차 출발 시간과 구미역 도착 deadline을 계산한다.
-3. 출발 좌표 주변 정류장과 구미역 방향 노선 후보를 찾는다.
-4. TAGO 실시간 도착, Gumi BIS 공식 시간표, walking route provider를 조합한다.
-5. TAGO가 적절하면 실시간 도착 정보를 사용한다.
-6. 실시간 정보가 없거나 너무 이르면 Gumi BIS timetable을 사용한다.
-7. 외부 데이터가 실패하면 mock fallback으로 응답한다.
+<img width="1325" height="777" alt="스크린샷 2026-06-03 오후 3 09 51" src="https://github.com/user-attachments/assets/85695205-c31f-4264-a79f-6b9fa939ff15" />
 
 ## Harness 개요
 
