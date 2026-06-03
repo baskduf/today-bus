@@ -16,28 +16,33 @@ Next.js 앱입니다.
 
 ## 2. 서비스 이미지
 
-<img width="490" height="773" alt="스크린샷 2026-06-03 오후 3 07 48" src="https://github.com/user-attachments/assets/65de6148-0004-439b-8ac6-a3daa80a8d3a" />
-
-<img width="490" height="773" alt="스크린샷 2026-06-03 오후 3 08 10" src="https://github.com/user-attachments/assets/d493f09e-0e3f-462a-8555-f9898982bc9a" />
+| 출발지 입력 화면 | 결과 확인 화면 |
+| --- | --- |
+| <img width="490" height="773" alt="스크린샷 2026-06-03 오후 3 07 48" src="https://github.com/user-attachments/assets/65de6148-0004-439b-8ac6-a3daa80a8d3a" /> | <img width="490" height="773" alt="스크린샷 2026-06-03 오후 3 08 10" src="https://github.com/user-attachments/assets/d493f09e-0e3f-462a-8555-f9898982bc9a" /> |
 
 ## 3. 서비스 아키텍처
 
 <img width="1325" height="777" alt="스크린샷 2026-06-03 오후 3 09 51" src="https://github.com/user-attachments/assets/85695205-c31f-4264-a79f-6b9fa939ff15" />
 
-## Harness 개요
+## Harness Kit의 도움
 
-이 저장소의 중심 목적은 서비스 개발뿐 아니라, 코딩 에이전트가 변경을
-안전하게 수행했는지 검증하는 harness를 dogfood하는 것입니다.
+이 프로젝트는 `harness-starter-kit`을 단순 템플릿이 아니라 작업 운영 체계의
+기준으로 사용했습니다. 앱 기능은 직접 구현하되, 변경을 안전하게 남기는 방식은
+kit의 도움을 많이 받았습니다.
 
-Harness가 확인하는 주요 위험:
+| 도움 받은 영역 | 프로젝트에 반영된 결과 |
+| --- | --- |
+| Agent workflow | `AGENTS.md`에 작업 규칙, 완료 기준, `/harness` command routing 정리 |
+| Verification gate | `npm run check:harness`로 lint, planner test, typecheck, build, harness drift check를 한 번에 실행 |
+| Decision memory | `docs/decisions/`에 제품 구조, API boundary, 시간 의미, harness rule을 ADR로 기록 |
+| Failure memory | `docs/failures/`에 반복하면 안 되는 실패와 detection/prevention check를 연결 |
+| External API safety | TAGO, Gumi BIS, TMAP, OpenRouteService 작업 전용 checklist와 focused smoke command 분리 |
+| Harness lifecycle | `.harness/source.json`으로 kit source를 추적하고 `/harness update`로 안전한 변경만 선별 적용 |
 
-- 구조적 제품 변경이 `docs/decisions/` 없이 지나가는지
-- 재발 가능한 실패가 `docs/failures/`와 detection check 없이 남는지
-- Next.js App Router, npm workflow, shared UI component 구조가 drift 되는지
-- planner가 TAGO, Gumi BIS timetable, walking route, mock fallback 경로에서
-  회귀하는지
-- 외부 API 작업에서 secret 노출, live/mock 혼동, provider error 처리가
-  빠지는지
+요약하면, kit은 이 프로젝트에서 코드 생성보다 **검증 루프, 작업 기억, 외부 API
+안전장치, 변경 보고 방식**에 크게 기여했습니다. 특히 planner처럼 live data와
+fallback이 섞이는 영역에서 deterministic test와 live smoke를 분리하는 기준을
+잡아준 점이 가장 컸습니다.
 
 기본 완료 gate:
 
@@ -45,59 +50,11 @@ Harness가 확인하는 주요 위험:
 npm run check:harness
 ```
 
-`check:harness`는 현재 아래 순서로 실행됩니다:
-
-```bash
-npm run lint
-npm run test:planner
-npm run typecheck
-npm run build
-node scripts/check-harness.mjs
-```
-
-빠르게 planner behavior만 확인할 때는 다음 명령을 사용합니다:
+빠르게 planner behavior만 확인할 때:
 
 ```bash
 npm run test:planner
 ```
-
-## Harness Memory
-
-`npm run check:harness`는 구현 경로가 바뀌었는데 `docs/decisions/` 변경이
-없으면 decision-memory warning을 출력할 수 있습니다. 이 warning은 실패가
-아니지만 최종 보고 전에 처리해야 합니다.
-
-`docs/failures/*.md`를 추가하거나 수정할 때는 같은 bug path가 돌아왔을 때
-무엇이 잡아내는지 테스트, fixture, script, smoke check, CI gate, 또는 manual
-review point를 기록해야 합니다.
-
-## Harness Lifecycle
-
-`/harness` command는 starter kit reference를 읽은 뒤 target repository에 맞게
-선별 적용합니다. `harness-starter-kit/`은 reference clone이며 app source가
-아닙니다.
-
-- `/harness doctor`: 현재 harness 상태와 gap 진단.
-- `/harness update`: starter kit를 최신화하고 안전한 target patch만 반영.
-- `/harness refresh`: 오래되거나 중복된 target harness artifact 정리.
-- `/harness review`: 변경 전후의 harness, memory, verification gap 검토.
-
-## External API Boundary
-
-Live/public-data check는 credential, quota, provider state, network에 의존하기
-때문에 기본 gate에 넣지 않습니다. 대신 deterministic fixture test를 normal
-gate에 두고, live smoke는 focused command로 분리합니다.
-
-Focused diagnostics:
-
-```bash
-npm run check:walking-route
-node scripts/check-tago-backend.mjs
-node scripts/check-gumi-bis-offset.mjs
-```
-
-TAGO, Gumi BIS, TMAP, OpenRouteService 작업 전에는
-`docs/checklists/external-api-work.md`를 확인합니다.
 
 ## Key Paths
 
