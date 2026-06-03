@@ -30,14 +30,14 @@ Next.js 앱입니다.
 기준으로 사용했습니다. 앱 기능은 직접 구현하되, 변경을 안전하게 남기는 방식은
 kit의 도움을 많이 받았습니다.
 
-| 도움 받은 영역 | 프로젝트에 반영된 결과 |
-| --- | --- |
-| Agent workflow | `AGENTS.md`에 작업 규칙, 완료 기준, `/harness` command routing 정리 |
-| Verification gate | `npm run check:harness`로 lint, planner test, typecheck, build, harness drift check를 한 번에 실행 |
-| Decision memory | `docs/decisions/`에 제품 구조, API boundary, 시간 의미, harness rule을 ADR로 기록 |
-| Failure memory | `docs/failures/`에 반복하면 안 되는 실패와 detection/prevention check를 연결 |
-| External API safety | TAGO, Gumi BIS, TMAP, OpenRouteService 작업 전용 checklist와 focused smoke command 분리 |
-| Harness lifecycle | `.harness/source.json`으로 kit source를 추적하고 `/harness update`로 안전한 변경만 선별 적용 |
+| 도움 받은 영역 | 프로젝트에 반영된 결과 | 관련 경로 |
+| --- | --- | --- |
+| Agent workflow | 작업 규칙, 완료 기준, `/harness` command routing 정리 | [AGENTS.md](AGENTS.md) |
+| Verification gate | lint, planner test, typecheck, build, harness drift check를 한 번에 실행 | [scripts/check-harness.mjs](scripts/check-harness.mjs) |
+| Decision memory | 제품 구조, API boundary, 시간 의미, harness rule을 ADR로 기록 | [docs/decisions/](docs/decisions/) |
+| Failure memory | 반복하면 안 되는 실패와 detection/prevention check를 연결 | [docs/failures/](docs/failures/) |
+| External API safety | TAGO, Gumi BIS, TMAP, OpenRouteService 작업 전용 checklist와 focused smoke command 분리 | [docs/checklists/external-api-work.md](docs/checklists/external-api-work.md) |
+| Harness lifecycle | kit source를 추적하고 `/harness update`로 안전한 변경만 선별 적용 | [.harness/source.json](.harness/source.json), [docs/harness/adoption-report.md](docs/harness/adoption-report.md) |
 
 요약하면, kit은 이 프로젝트에서 코드 생성보다 **검증 루프, 작업 기억, 외부 API
 안전장치, 변경 보고 방식**에 크게 기여했습니다. 특히 planner처럼 live data와
