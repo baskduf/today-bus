@@ -105,6 +105,8 @@ const rejectedFailureDetectionPhrases = [
 
 const failureCheckPathPattern =
   /`?((?:tests?|specs?|fixtures?|scripts?|docs\/checklists)\/[^\s,;)`]+|\.github\/workflows\/[^\s,;)`]+)`?/gi;
+const packageScriptCommandPattern =
+  /\b(?<manager>npm|pnpm|yarn|bun)\s+run\s+(?<script>[\w:./-]+)/g;
 
 const failures = [];
 
@@ -210,6 +212,21 @@ function referencedFailureCheckPaths(section) {
   return [...section.matchAll(failureCheckPathPattern)]
     .map((match) => match[1].replace(/[.)]+$/, ""))
     .sort();
+}
+
+function normalizePackageScriptName(value) {
+  return value.replace(/[.,;)\]}]+$/, "");
+}
+
+function referencedPackageScriptCommands(section) {
+  return [...section.matchAll(packageScriptCommandPattern)]
+    .map((match) => ({
+      command: `${match.groups.manager} run ${normalizePackageScriptName(
+        match.groups.script,
+      )}`,
+      script: normalizePackageScriptName(match.groups.script),
+    }))
+    .sort((left, right) => left.command.localeCompare(right.command));
 }
 
 async function loadDecisionMemoryRules() {
@@ -337,6 +354,8 @@ async function checkFailureMemoryRecords() {
     return;
   }
 
+  const packageJson = await readJson("package.json");
+  const packageScripts = new Set(Object.keys(packageJson.scripts ?? {}));
   const entries = await readdir(failuresDir, { withFileTypes: true });
   const recordNames = entries
     .filter(
@@ -386,6 +405,16 @@ async function checkFailureMemoryRecords() {
       if (!existsSync(path.join(root, referencedPath))) {
         failures.push(
           `${relativePath} detection/prevention references missing local path: ${referencedPath}`,
+        );
+      }
+    }
+
+    for (const { command, script } of referencedPackageScriptCommands(
+      detectionSection,
+    )) {
+      if (!packageScripts.has(script)) {
+        failures.push(
+          `${relativePath} detection/prevention references missing package.json script: ${command}`,
         );
       }
     }
