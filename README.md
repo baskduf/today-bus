@@ -24,7 +24,7 @@ Next.js 앱입니다.
 
 <img width="1325" height="777" alt="스크린샷 2026-06-03 오후 3 09 51" src="https://github.com/user-attachments/assets/85695205-c31f-4264-a79f-6b9fa939ff15" />
 
-## Harness Kit의 도움
+## harness-starter-kit-dog-food
 
 이 프로젝트는 `harness-starter-kit`을 단순 템플릿이 아니라 작업 운영 체계의
 기준으로 사용했습니다. 앱 기능은 직접 구현하되, 변경을 안전하게 남기는 방식은
@@ -44,18 +44,6 @@ kit의 도움을 많이 받았습니다.
 fallback이 섞이는 영역에서 deterministic test와 live smoke를 분리하는 기준을
 잡아준 점이 가장 컸습니다.
 
-기본 완료 gate:
-
-```bash
-npm run check:harness
-```
-
-빠르게 planner behavior만 확인할 때:
-
-```bash
-npm run test:planner
-```
-
 ## Key Paths
 
 - App source: `src/app/`
@@ -66,10 +54,3 @@ npm run test:planner
 - Local tests: `tests/`
 - Harness docs: `docs/harness/`
 - Harness source tracking: `.harness/source.json`
-
-## Known Gaps
-
-- CI는 아직 구성하지 않았습니다.
-- 브라우저 smoke verification은 수동입니다.
-- `docs/effectiveness/` measurement record는 아직 시작하지 않았습니다.
-- live API diagnostics는 의도적으로 default harness gate 밖에 있습니다.
