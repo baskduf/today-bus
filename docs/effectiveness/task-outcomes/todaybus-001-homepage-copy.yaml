@@ -1,0 +1,74 @@
+schema_version: 1
+
+target:
+  repository: today-bus
+  repository_ref: main@2e0df3debb065d73b8baa737d739a64e64762733
+  stack_or_framework: Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4
+  date: 2026-06-04
+  agent_or_model: Codex
+  reviewer: wb
+
+task:
+  id: todaybus-homepage-copy-tightening
+  run_id: todaybus-001-homepage-copy
+  prompt_summary: Tighten homepage copy so it explains that the app helps users decide when to leave for Gumi Station by combining train time, bus arrivals, and walking time, while keeping product behavior and visual structure.
+  prompt_ref: chat prompt on 2026-06-04 with task id todaybus-homepage-copy-tightening and run id todaybus-001-homepage-copy
+  prompt_hash: not computed
+  comparable_task_group: todaybus-homepage-copy-tightening
+  condition: harnessed-only
+  expected_boundary:
+    - src/app/**
+    - src/components/**
+    - docs/domain/**
+    - docs/effectiveness/task-outcomes/**
+    - README.md
+  known_failure_mode: Broad UI rewrites instead of focused copy changes; product behavior changes without tests; touching generated files or package files; claiming harness effectiveness from a single harnessed-only run; missing task outcome record.
+
+harness_context:
+  harness_doctor_score: not run
+  harness_source:
+    kit_url: https://github.com/baskduf/harness-starter-kit
+    kit_commit: 7d6fac27d69229bfc954b662d24dea9984b1bc50
+    source_tracking_ref: .harness/source.json
+  relevant_instructions:
+    - AGENTS.md
+    - docs/evaluation.md
+    - docs/templates/task-outcome.yaml
+    - docs/domain/glossary.md
+    - docs/design/component-rules.md
+    - node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/page.md
+    - node_modules/next/dist/docs/01-app/01-getting-started/03-layouts-and-pages.md
+  relevant_constraints:
+    - Keep product behavior and visual structure.
+    - Do not edit ./harness-starter-kit/**.
+    - Do not edit generated files, package files, scripts, planner/API/provider files, docs/decisions, or docs/failures for this copy task.
+    - Treat this as harnessed-only tracking and do not claim effectiveness improvement from one run.
+  relevant_memory_records:
+    - docs/evaluation.md
+    - docs/harness/adoption-report.md
+    - docs/decisions/0009-add-decision-memory-harness-warning.md
+    - docs/decisions/0017-refresh-next-generated-types-before-typecheck.md
+    - docs/failures/0001-missing-adr-for-mvp-product-structure.md
+    - docs/failures/0005-next-dev-validator-typecheck-artifact.md
+
+outcome:
+  files_changed:
+    - src/app/layout.tsx
+    - src/app/page.tsx
+    - src/components/today-bus/search-form.tsx
+    - docs/effectiveness/task-outcomes/todaybus-001-homepage-copy.yaml
+  wrong_file_edits: false
+  repeated_known_mistake: false
+  verification_command: npm run check:harness; git diff --check; local HTTP smoke at http://localhost:3000
+  first_pass_verification:
+    result: passed
+  drift_violations_detected:
+    - none
+  human_rework_minutes: unknown
+  reverted_files: []
+  notes: The homepage copy was tightened without changing planner behavior, API behavior, form state, package files, scripts, generated output, or the read-only harness-starter-kit reference clone. Pre-existing uncommitted docs-only effectiveness adoption artifacts were present before this task and are not counted as this run's product-copy edits. Playwright was unavailable in the local Node runtime, so local HTTP smoke was used to verify the tightened homepage strings rendered at http://localhost:3000.
+
+follow_up:
+  harness_change_needed: none
+  decision_or_failure_record: not needed; this follows existing product semantics and fixes no recurring or high-risk failure.
+  include_in_effectiveness_report: yes, as harnessed-only tracking only; do not infer harness effectiveness improvement from this single run.

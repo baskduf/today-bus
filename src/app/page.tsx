@@ -20,9 +20,14 @@ export default function Home() {
               width={82}
             />
           </div>
-          <h1 className="text-[31px] font-black leading-tight text-[var(--ob-text)]">
-            구미역으로 가자
-          </h1>
+          <div className="flex flex-col gap-1">
+            <h1 className="text-[31px] font-black leading-tight text-[var(--ob-text)]">
+              구미역으로 가자
+            </h1>
+            <p className="text-[16px] font-bold leading-snug text-[var(--ob-text2)]">
+              기차 시간, 버스 도착, 걷는 시간을 합쳐 언제 나갈지 계산합니다.
+            </p>
+          </div>
         </header>
 
         <SearchForm />

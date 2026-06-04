@@ -2,12 +2,21 @@
 
 ## Scope
 
-Gumi BIS is used as the official timetable source for the current Today-Bus
-demo route when TAGO real-time arrival data has no upcoming route-specific
-arrival at the origin stop.
+Gumi BIS is used as the official timetable fallback for the current Today-Bus
+demo route when TAGO live arrivals have no usable route-specific timing at the
+origin stop, or when a TAGO live arrival would make the user reach Gumi Station
+too early for the station arrival deadline.
 
 This source does not require a service key. Do not send or document the TAGO
 service key when calling Gumi BIS.
+
+Terminology:
+
+- TAGO live arrivals: real-time route-specific arrival predictions from TAGO.
+- Gumi BIS timetable fallback: route-start timetable planning with an estimated
+  origin-stop pass time.
+- mock fallback: fixed demo plans used when no usable timing result can be
+  planned from TAGO or Gumi BIS.
 
 ## Endpoints
 
@@ -92,6 +101,11 @@ Gumi BIS `routeId` from the TAGO route id by removing the `GMB` prefix, then
 uses the same route-start-to-origin stop-order estimate. This is still a
 fallback estimate; TAGO live route-specific arrivals remain the preferred
 timing source when available.
+
+If the Gumi BIS response has no usable timetable rows for the requested station
+arrival deadline, the planner continues to mock fallback with a structured
+fallback reason instead of treating the empty timetable as a live provider
+success.
 
 ## Offset Observation
 

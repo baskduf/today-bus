@@ -482,3 +482,38 @@ test("falls back to mock when Gumi BIS timetable lookup fails", async () => {
   assert.equal(response.source, "mock");
   assert.equal(response.fallback?.reason, "no_arrival");
 });
+
+test("falls back to mock when TAGO and timetable have no usable timing result", async () => {
+  const { calls, dependencies } = createDependencies({
+    arrivals: [],
+    getTimetable: async () => ({ rows: [] }),
+  });
+
+  const response = await createTodayBusPlanResponseWithDependencies(
+    { ...demoInput, arrival: "오늘 18:00", trainDeparture: "오늘 18:10" },
+    dependencies,
+  );
+
+  assert.equal(response.source, "mock");
+  assert.equal(response.tago?.arrivalCount, 0);
+  assert.equal(response.timetable, undefined);
+  assert.equal(response.fallback?.reason, "no_arrival");
+  assert.equal(
+    response.fallback?.message,
+    "TAGO 실시간 도착정보와 구미 BIS 공식 시간표에서 사용할 수 있는 미래 계획을 찾지 못해 mock 플랜으로 대체했습니다.",
+  );
+  assert.deepEqual(response.warnings, [
+    "TAGO 실시간 도착정보에 현재 180번 도착예정이 없어 구미 BIS 공식 시간표를 확인합니다.",
+    "TAGO 실시간 도착정보와 구미 BIS 공식 시간표에서 사용할 수 있는 미래 계획을 찾지 못해 mock 플랜으로 대체했습니다.",
+  ]);
+  assert.equal(response.recommendedPlan.id, "plan-a");
+  assert.equal(response.recommendedPlan.label, "추천 플랜 A");
+  assert.equal(response.recoveryPlan.id, "plan-c");
+  assert.equal(response.plans.length, 3);
+  assert.equal(response.itinerary.boardingStop.name, "진평중학교입구건너");
+  assert.equal(response.itinerary.destinationPlace.label, "구미역");
+  assert.equal(response.train.departureTime, "오늘 18:10");
+  assert.equal(response.train.stationArrivalDeadline, "오늘 18:00");
+  assert.equal(calls.getDemoSnapshot, 1);
+  assert.equal(calls.getTimetable, 1);
+});

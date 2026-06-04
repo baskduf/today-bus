@@ -24,7 +24,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "구미역으로 가자",
-  description: "구미역 기차 시간에 맞춰 오늘 나가야 할 시간을 알려주는 서비스",
+  description:
+    "기차 시간, 버스 도착, 도보 시간을 합쳐 구미역으로 언제 출발할지 알려주는 서비스",
 };
 
 export default function RootLayout({

@@ -28,6 +28,7 @@
 - `.harness/source.json`, `AGENTS.md`, `docs/checklists/verification-scripts.md`, and this report: recorded the `/harness update` to kit commit `94e416b354facffafead6bbb9691af1598139389` and adopted gate-placement reporting guidance.
 - `.harness/source.json`, `scripts/check-harness.mjs`, `docs/failures/`, `docs/checklists/decision-failure-memory.md`, and this report: recorded the `/harness update` to kit commit `fa76b7aa94506aa3ff2c9b256ee45368d418451b` and adopted failure-memory detection/prevention linkage.
 - `.harness/source.json`, `scripts/check-harness.mjs`, `docs/decisions/0016-link-failure-memory-to-detection-checks.md`, and this report: recorded the `/harness update` to kit commit `7d6fac27d69229bfc954b662d24dea9984b1bc50` and adopted package-script validation for failure-memory detection commands.
+- `docs/evaluation.md`, `docs/templates/`, `docs/effectiveness/task-outcomes/`, `docs/decisions/0018-adopt-effectiveness-outcome-tracking.md`, `README.md`, `AGENTS.md`, and this report: adopted local effectiveness outcome tracking artifacts for harnessed-only dogfood runs without claiming improvement from a single observation.
 
 ## Existing Structures Reused
 
@@ -127,6 +128,7 @@ python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report
 - Review window: next 5 comparable agent changes after adoption.
 - Results location: `docs/effectiveness/harness-effectiveness.md`.
 - Task outcome records location: `docs/effectiveness/task-outcomes/`.
+- Local protocol and templates: `docs/evaluation.md`, `docs/templates/task-outcome.yaml`, and `docs/templates/effectiveness-report.md`.
 
 ## Assumptions
 

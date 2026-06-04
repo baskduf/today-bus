@@ -1,0 +1,73 @@
+schema_version: 1
+
+target:
+  repository: today-bus
+  repository_ref: codex/effectiveness-homepage-copy@142c7612740eb050a7beff0733279be50221d250
+  stack_or_framework: Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4
+  date: 2026-06-04
+  agent_or_model: Codex
+  reviewer: wb
+
+task:
+  id: todaybus-domain-planner-terms-alignment
+  run_id: todaybus-003-domain-planner-terms
+  prompt_summary: Review planner-related domain docs and align terminology for TAGO live arrivals, Gumi BIS timetable fallback, mock fallback, station arrival deadline, and train departure time without changing app behavior or tests.
+  prompt_ref: chat prompt on 2026-06-04 with task id todaybus-domain-planner-terms-alignment and run id todaybus-003-domain-planner-terms
+  prompt_hash: not computed
+  comparable_task_group: todaybus-domain-planner-terms-alignment
+  condition: harnessed-only
+  expected_boundary:
+    - docs/domain/**
+    - docs/effectiveness/task-outcomes/**
+  known_failure_mode: Editing app or test files for a docs-only terminology task; changing planner semantics without a decision record; duplicating ADR content instead of clarifying domain terms; claiming harness effectiveness from a single harnessed-only run; missing task outcome record.
+
+harness_context:
+  harness_doctor_score: not run
+  harness_source:
+    kit_url: https://github.com/baskduf/harness-starter-kit
+    kit_commit: 7d6fac27d69229bfc954b662d24dea9984b1bc50
+    source_tracking_ref: .harness/source.json
+  relevant_instructions:
+    - AGENTS.md
+    - docs/evaluation.md
+    - docs/templates/task-outcome.yaml
+    - docs/domain/glossary.md
+    - docs/domain/tago-api.md
+    - docs/domain/gumi-bis.md
+    - docs/domain/openrouteservice-walking.md
+    - docs/domain/tmap-walking.md
+  relevant_constraints:
+    - Do not edit ./harness-starter-kit/**.
+    - Do not edit src/**, tests/**, package files, scripts, generated output, docs/decisions, or docs/failures for this docs-only task.
+    - Clarify terms without changing planner semantics or duplicating ADR content.
+    - Treat this as harnessed-only tracking and do not claim effectiveness improvement from one run.
+  relevant_memory_records:
+    - docs/evaluation.md
+    - docs/harness/adoption-report.md
+    - docs/decisions/0005-add-tago-backed-planner-boundary.md
+    - docs/decisions/0006-use-gumi-bis-timetable-for-demo-planning.md
+    - docs/decisions/0011-coordinate-based-direct-route-planning.md
+    - docs/decisions/0016-link-failure-memory-to-detection-checks.md
+    - docs/failures/0001-missing-adr-for-mvp-product-structure.md
+
+outcome:
+  files_changed:
+    - docs/domain/glossary.md
+    - docs/domain/tago-api.md
+    - docs/domain/gumi-bis.md
+    - docs/effectiveness/task-outcomes/todaybus-003-domain-planner-terms.yaml
+  wrong_file_edits: false
+  repeated_known_mistake: false
+  verification_command: npm run check:harness; git diff --check
+  first_pass_verification:
+    result: passed
+  drift_violations_detected:
+    - none
+  human_rework_minutes: unknown
+  reverted_files: []
+  notes: Clarified domain terminology for train departure time, station arrival deadline, TAGO live arrivals, Gumi BIS timetable fallback, mock fallback, and planner source/fallback classification. No app behavior, tests, package files, scripts, generated files, decisions, failures, or harness-starter-kit reference files were changed.
+
+follow_up:
+  harness_change_needed: none
+  decision_or_failure_record: not needed; this clarifies terminology for existing planner semantics covered by current ADRs and fixes no recurring or high-risk failure.
+  include_in_effectiveness_report: yes, as harnessed-only tracking only; do not infer harness effectiveness improvement from this single run.

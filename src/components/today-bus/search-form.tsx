@@ -352,7 +352,7 @@ export function SearchForm() {
         <div className="flex flex-col gap-2">
           <span className="flex items-center gap-2 text-[16px] font-black text-[var(--ob-text)]">
             <IconPin size={20} stroke={obColors.ink} />
-            출발지
+            현재 출발 위치
           </span>
           <div
             className="relative h-64 overflow-hidden rounded-[18px] border-2 border-[var(--ob-ink-soft)] bg-white grayscale contrast-110"
@@ -378,7 +378,7 @@ export function SearchForm() {
           <div className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-2 text-[16px] font-black text-[var(--ob-text)]">
               <IconClock size={20} stroke={obColors.ink} />
-              기차 시간
+              구미역 기차 시간
             </span>
           </div>
           <input
@@ -426,7 +426,7 @@ export function SearchForm() {
 
         <div className="flex flex-col gap-2">
           <span className="text-[16px] font-black text-[var(--ob-text)]">
-            여유
+            역 도착 여유
           </span>
           <div className="grid grid-cols-3 gap-2">
             {tripDefaults.stationBuffers.map((buffer) => {
@@ -457,7 +457,7 @@ export function SearchForm() {
           disabled={!canSubmit}
           type="submit"
         >
-          <span>계산하기</span>
+          <span>출발 시간 계산하기</span>
           <span aria-hidden="true" className="ob-modern-cta__icon">
             &gt;
           </span>

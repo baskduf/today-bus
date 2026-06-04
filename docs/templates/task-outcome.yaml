@@ -1,0 +1,58 @@
+# Manual record for one agent task. Use docs/templates/effectiveness-report.md
+# as the template for aggregating comparable records.
+# In this repository, store filled copies under
+# docs/effectiveness/task-outcomes/.
+schema_version: 1
+
+target:
+  repository: TODO
+  repository_ref: TODO # commit SHA, branch, tag, or PR ref used for the run
+  stack_or_framework: TODO
+  date: YYYY-MM-DD
+  agent_or_model: TODO
+  reviewer: TODO
+
+task:
+  id: TODO
+  run_id: TODO
+  prompt_summary: TODO
+  prompt_ref: TODO # prompt text, file path, issue URL, or stable identifier
+  prompt_hash: TODO # optional checksum when exact prompt reproducibility matters
+  comparable_task_group: TODO
+  condition: TODO # baseline, harnessed, or harnessed-only
+  expected_boundary:
+    - TODO
+  known_failure_mode: TODO
+
+harness_context:
+  harness_doctor_score: TODO # optional harness health signal, not effectiveness proof
+  harness_source:
+    kit_url: TODO
+    kit_commit: TODO
+    source_tracking_ref: TODO # .harness/source.json path or none
+  relevant_instructions:
+    - TODO
+  relevant_constraints:
+    - TODO
+  relevant_memory_records:
+    - TODO
+
+outcome:
+  files_changed:
+    - TODO
+  wrong_file_edits: TODO
+  repeated_known_mistake: TODO
+  verification_command: TODO
+  first_pass_verification:
+    result: TODO
+  drift_violations_detected:
+    - TODO
+  human_rework_minutes: TODO
+  reverted_files:
+    - TODO
+  notes: TODO
+
+follow_up:
+  harness_change_needed: TODO
+  decision_or_failure_record: TODO
+  include_in_effectiveness_report: TODO
