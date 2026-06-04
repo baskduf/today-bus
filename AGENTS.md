@@ -61,6 +61,8 @@ Inspect these before architecture, workflow, integration, or repeated-failure wo
 - `docs/domain/`
 - `docs/failures/`
 - `docs/harness/adoption-report.md`
+- `docs/evaluation.md`
+- `docs/effectiveness/`
 
 Add or update durable docs when behavior, architecture, commands, conventions, known failures, or harness rules change. If a user-visible runtime failure, failed check, repeated agent mistake, data-loss risk, security issue, or cross-environment mismatch is fixed, add a `docs/failures/` record unless an existing record already covers it.
 
@@ -69,6 +71,8 @@ For structural product or workflow changes, mock/API boundary choices, major dat
 If `npm run check:harness` prints a decision-memory warning, resolve it before the final report by adding or updating a decision record, citing the existing ADR that covers the change, or explicitly explaining why no decision memory is needed.
 
 For live external API or public-data work, use `docs/checklists/external-api-work.md` and keep live smoke checks separate from `check:harness` unless they are stable and safe by default.
+
+For harness effectiveness dogfood or evaluation work, read `docs/evaluation.md`, use `docs/templates/task-outcome.yaml` for individual observations, store filled records under `docs/effectiveness/task-outcomes/`, and do not claim effectiveness improvement from harnessed-only tracking unless a comparable baseline exists.
 
 ## Completion Criteria
 

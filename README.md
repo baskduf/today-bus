@@ -38,6 +38,7 @@ kit의 도움을 많이 받았습니다.
 | Failure memory | 반복하면 안 되는 실패와 detection/prevention check를 연결 | [docs/failures/](docs/failures/) |
 | External API safety | TAGO, Gumi BIS, TMAP, OpenRouteService 작업 전용 checklist와 focused smoke command 분리 | [docs/checklists/external-api-work.md](docs/checklists/external-api-work.md) |
 | Harness lifecycle | kit source를 추적하고 `/harness update`로 안전한 변경만 선별 적용 | [.harness/source.json](.harness/source.json), [docs/harness/adoption-report.md](docs/harness/adoption-report.md) |
+| Effectiveness tracking | harness health와 agent outcome을 분리하고 task outcome을 수동 기록 | [docs/evaluation.md](docs/evaluation.md), [docs/effectiveness/](docs/effectiveness/) |
 
 요약하면, kit은 이 프로젝트에서 코드 생성보다 **검증 루프, 작업 기억, 외부 API
 안전장치, 변경 보고 방식**에 크게 기여했습니다. 특히 planner처럼 live data와
@@ -53,4 +54,5 @@ fallback이 섞이는 영역에서 deterministic test와 live smoke를 분리하
 - Walking providers: `src/lib/tmap/`, `src/lib/openrouteservice/`
 - Local tests: `tests/`
 - Harness docs: `docs/harness/`
+- Harness effectiveness tracking: `docs/evaluation.md`, `docs/effectiveness/`
 - Harness source tracking: `.harness/source.json`
