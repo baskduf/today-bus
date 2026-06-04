@@ -164,12 +164,26 @@ the response format defensively:
 - Error messages, API responses, scripts, and docs must never include the TAGO
   service key or a full `serviceKey=...` query string.
 
-## Official Timetable Fallback
+## Planner Timing Terms
 
-TAGO real-time arrival data remains the first live source. When the
-route-specific arrival lookup succeeds but returns zero rows, Today-Bus now
-checks the official Gumi BIS timetable for the current demo route before using
-mock fallback.
+Use these terms consistently in planner docs and reports:
+
+- TAGO live arrivals: route-specific real-time bus arrival predictions for the
+  selected boarding stop. Empty successful responses are handled results, not
+  provider failures.
+- Gumi BIS timetable fallback: official route-start timetable planning used
+  after TAGO has no usable live arrival, or when the live arrival would be too
+  early for the station arrival deadline.
+- mock fallback: fixed demo plans returned when no usable timing result can be
+  planned from TAGO live arrivals or Gumi BIS timetable data, or when input is
+  unsupported.
+- station arrival deadline: the planner deadline derived from
+  `trainDeparture - stationBufferMinutes`.
+- train departure time: the user's intended Gumi Station train departure time.
+
+TAGO live arrivals remain the first live source. When the route-specific
+arrival lookup succeeds but returns zero rows, Today-Bus checks the official
+Gumi BIS timetable for the current demo route before using mock fallback.
 
 See `docs/domain/gumi-bis.md` for the Gumi BIS endpoints and confirmed route
 `18020` timetable values.
@@ -183,6 +197,10 @@ Planner source priority for the supported demo route:
    is available.
 3. `mock`: unsupported route, unsupported input, TAGO/BIS failure, or no usable
    timetable result.
+
+Use the `source` values above for response classification. Use `fallback.reason`
+only when the response source is `mock` and the user-facing fallback reason
+needs to be shown or recorded.
 
 The Gumi BIS timetable is route-start based. The planner estimates the demo
 origin-stop pass time from confirmed TAGO route stop orders, so it is more
@@ -305,10 +323,11 @@ Fallback reasons:
   station-arrival deadline is not a supported `YYYY-MM-DD HH:mm` or
   `오늘/내일 HH:mm` value.
 - `no_arrival`: TAGO lookup succeeded, but the route-specific origin-stop
-  arrival list is empty and no usable timetable plan was available.
+  arrival list is empty and no usable Gumi BIS timetable plan was available.
 - `tago_error`: the public data API call failed or returned an error response.
-- `timetable_error`: TAGO and Gumi BIS timetable lookup did not produce a usable
-  plan.
+- `timetable_error`: TAGO did not produce a suitable plan and the Gumi BIS
+  timetable path failed or produced no usable plan for a non-empty-arrival
+  branch such as a too-early live arrival.
 
 Operational health endpoint:
 
