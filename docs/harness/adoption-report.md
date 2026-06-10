@@ -29,6 +29,7 @@
 - `.harness/source.json`, `scripts/check-harness.mjs`, `docs/failures/`, `docs/checklists/decision-failure-memory.md`, and this report: recorded the `/harness update` to kit commit `fa76b7aa94506aa3ff2c9b256ee45368d418451b` and adopted failure-memory detection/prevention linkage.
 - `.harness/source.json`, `scripts/check-harness.mjs`, `docs/decisions/0016-link-failure-memory-to-detection-checks.md`, and this report: recorded the `/harness update` to kit commit `7d6fac27d69229bfc954b662d24dea9984b1bc50` and adopted package-script validation for failure-memory detection commands.
 - `docs/evaluation.md`, `docs/templates/`, `docs/effectiveness/task-outcomes/`, `docs/decisions/0018-adopt-effectiveness-outcome-tracking.md`, `README.md`, `AGENTS.md`, and this report: adopted local effectiveness outcome tracking artifacts for harnessed-only dogfood runs without claiming improvement from a single observation.
+- `.harness/source.json`, `AGENTS.md`, `scripts/check-harness.mjs`, `docs/evaluation.md`, `docs/checklists/dogfood-evidence-adoption.md`, `docs/templates/`, `docs/effectiveness/task-outcomes/`, `docs/decisions/0018-adopt-effectiveness-outcome-tracking.md`, and this report: recorded the `/harness update` to kit commit `de0737abf3808ecbd7eae50fcc7fab119594bd0d`, adopted the canonical `harnessworks` source URL, explicit task-outcome inclusion flags, and local validation for source tracking plus task-outcome evidence.
 
 ## Existing Structures Reused
 
@@ -53,6 +54,18 @@ Additional checks are listed in the final turn report and should include:
 npm run check:harness
 python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report
 ```
+
+Most recent `/harness update` verification on 2026-06-10:
+
+```bash
+npm run check:harness
+python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report
+python3 harness-starter-kit/scripts/check_failure_memory.py
+python3 harness-starter-kit/scripts/harness_doctor.py --target .
+```
+
+Result: passed. Harness Doctor reported `72/100` with no coupling findings
+detected by the scan.
 
 ## Verification Gate Placement
 
@@ -129,6 +142,10 @@ python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report
 - Results location: `docs/effectiveness/harness-effectiveness.md`.
 - Task outcome records location: `docs/effectiveness/task-outcomes/`.
 - Local protocol and templates: `docs/evaluation.md`, `docs/templates/task-outcome.yaml`, and `docs/templates/effectiveness-report.md`.
+- Harness-maintenance records: preserve as operational evidence when substantial
+  harness workflows, check scripts, source tracking, or effectiveness evidence
+  change, but exclude them from comparable product-task counts unless the run is
+  intentionally a comparable product task.
 
 ## Assumptions
 

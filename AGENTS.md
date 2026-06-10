@@ -48,7 +48,7 @@ Use `npm run dev` for local development. The default local URL is `http://localh
 - When asked for `/harness update`, read and follow `./harness-starter-kit/commands/harness-update.md`.
 - When asked for `/harness refresh`, read and follow `./harness-starter-kit/commands/harness-refresh.md`.
 - When asked for `/harness review` or `/harness review sub-agent`, read and follow `./harness-starter-kit/commands/harness-review.md`.
-- If `./harness-starter-kit` is absent for a harness command, clone `https://github.com/baskduf/harness-starter-kit` into that path first, then treat it as read-only reference material.
+- If `./harness-starter-kit` is absent for a harness command, clone `https://github.com/harnessworks/harness-starter-kit` into that path first, then treat it as read-only reference material.
 
 ## Knowledge Store
 
@@ -73,6 +73,8 @@ If `npm run check:harness` prints a decision-memory warning, resolve it before t
 For live external API or public-data work, use `docs/checklists/external-api-work.md` and keep live smoke checks separate from `check:harness` unless they are stable and safe by default.
 
 For harness effectiveness dogfood or evaluation work, read `docs/evaluation.md`, use `docs/templates/task-outcome.yaml` for individual observations, store filled records under `docs/effectiveness/task-outcomes/`, and do not claim effectiveness improvement from harnessed-only tracking unless a comparable baseline exists.
+
+For substantial harness maintenance, decide before the final report whether task outcome evidence is needed. Record one when the work changes profiles, check scripts, command workflows, adoption workflow, dogfood or effectiveness evidence, first-pass verification results, known failure paths, failed CI or harness checks, cross-environment mismatches, or high-risk integration behavior. Skip records for trivial docs-only wording, typo, link-label, or formatting changes and state why; harness-maintenance records default `include_in_comparable_product_task_count` to `false`.
 
 ## Completion Criteria
 

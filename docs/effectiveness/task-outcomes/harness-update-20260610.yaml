@@ -1,0 +1,87 @@
+schema_version: 1
+
+target:
+  repository: today-bus
+  repository_ref: codex/effectiveness-homepage-copy@f8b295a18e671651feb377eca9bf04644d10caba
+  stack_or_framework: Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4
+  date: 2026-06-10
+  agent_or_model: Codex
+  reviewer: Codex self-recorded; human reviewer unknown
+
+task:
+  id: todaybus-harness-update-20260610
+  run_id: harness-update-20260610
+  prompt_summary: Run /harness update, refresh the local starter-kit reference, adopt target-safe harness evidence guidance, and update source tracking without changing product behavior.
+  prompt_ref: chat prompt on 2026-06-10 requesting /harness update
+  prompt_hash: not computed
+  comparable_task_group: harness-maintenance
+  condition: harnessed-only
+  expected_boundary:
+    - .harness/source.json
+    - AGENTS.md
+    - scripts/check-harness.mjs
+    - docs/checklists/**
+    - docs/decisions/**
+    - docs/evaluation.md
+    - docs/templates/**
+    - docs/effectiveness/task-outcomes/**
+    - docs/harness/adoption-report.md
+  known_failure_mode: Blindly overwriting target harness files from the starter kit, leaving stale source tracking, treating harness-maintenance evidence as product-task effectiveness evidence, or claiming effectiveness improvement from harnessed-only tracking.
+
+harness_context:
+  harness_doctor_score: 72/100 before target patches
+  harness_source:
+    kit_url: https://github.com/harnessworks/harness-starter-kit
+    kit_commit: de0737abf3808ecbd7eae50fcc7fab119594bd0d
+    source_tracking_ref: .harness/source.json
+  relevant_instructions:
+    - AGENTS.md
+    - harness-starter-kit/commands/harness-update.md
+    - docs/evaluation.md
+    - docs/templates/task-outcome.yaml
+    - docs/checklists/dogfood-evidence-adoption.md
+  relevant_constraints:
+    - Keep target repository files as source of truth.
+    - Do not blindly overwrite target files from the starter kit.
+    - Do not edit generated output or dependency directories.
+    - Keep harness-starter-kit/ as read-only reference material except for the required fast-forward refresh.
+    - Do not claim effectiveness improvement from harnessed-only records.
+  relevant_memory_records:
+    - docs/harness/adoption-report.md
+    - docs/decisions/0001-adopt-prompt-first-harness.md
+    - docs/decisions/0016-link-failure-memory-to-detection-checks.md
+    - docs/decisions/0018-adopt-effectiveness-outcome-tracking.md
+    - docs/failures/0005-next-dev-validator-typecheck-artifact.md
+
+outcome:
+  files_changed:
+    - .harness/source.json
+    - AGENTS.md
+    - scripts/check-harness.mjs
+    - docs/checklists/dogfood-evidence-adoption.md
+    - docs/decisions/0018-adopt-effectiveness-outcome-tracking.md
+    - docs/evaluation.md
+    - docs/templates/effectiveness-report.md
+    - docs/templates/task-outcome.yaml
+    - docs/effectiveness/task-outcomes/dogfood-effectiveness-20260604-160333.yaml
+    - docs/effectiveness/task-outcomes/harness-update-20260610.yaml
+    - docs/effectiveness/task-outcomes/todaybus-001-homepage-copy.yaml
+    - docs/effectiveness/task-outcomes/todaybus-002-empty-result-tests.yaml
+    - docs/effectiveness/task-outcomes/todaybus-003-domain-planner-terms.yaml
+    - docs/harness/adoption-report.md
+  wrong_file_edits: false
+  repeated_known_mistake: false
+  verification_command: npm run check:harness; python3 harness-starter-kit/scripts/check_effectiveness_plan.py --require-report; python3 harness-starter-kit/scripts/check_failure_memory.py; python3 harness-starter-kit/scripts/harness_doctor.py --target .
+  first_pass_verification:
+    result: passed
+  drift_violations_detected:
+    - none
+  human_rework_minutes: not measured
+  reverted_files: []
+  notes: This is a non-comparable harness-maintenance record. It should be preserved as operational evidence but excluded from product-task effectiveness counts.
+
+follow_up:
+  harness_change_needed: none
+  decision_or_failure_record: docs/decisions/0018-adopt-effectiveness-outcome-tracking.md
+  include_in_effectiveness_report: true
+  include_in_comparable_product_task_count: false
