@@ -32,6 +32,13 @@ docs-only harness workflow:
   `docs/templates/effectiveness-report.md` as local templates.
 - Store filled individual observations under
   `docs/effectiveness/task-outcomes/`.
+- Require explicit `include_in_effectiveness_report` and
+  `include_in_comparable_product_task_count` flags so setup, maintenance, and
+  product-task records are not mixed accidentally.
+- Record task outcome evidence for substantial harness-maintenance work that
+  changes command workflows, check scripts, dogfood evidence, effectiveness
+  evidence, or verification behavior; skip trivial docs-only wording changes
+  with an explicit final-report reason.
 - Treat the current evaluation mode as harnessed-only until comparable baseline
   task data exists.
 - Do not claim the harness improved agent effectiveness from one run.
@@ -43,6 +50,9 @@ docs-only harness workflow:
 - Task outcome files are effectiveness evidence, not harness health scores.
 - Placeholder prompts should be recorded as non-comparable or incomplete rather
   than reported as successful product-task evidence.
+- Harness-maintenance records default to
+  `include_in_comparable_product_task_count: false` unless they are intentionally
+  comparable product-task runs.
 
 ## Verification
 

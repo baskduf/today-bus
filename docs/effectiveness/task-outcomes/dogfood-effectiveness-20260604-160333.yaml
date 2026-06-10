@@ -30,7 +30,7 @@ task:
 harness_context:
   harness_doctor_score: not run
   harness_source:
-    kit_url: https://github.com/baskduf/harness-starter-kit
+    kit_url: https://github.com/harnessworks/harness-starter-kit
     kit_commit: 7d6fac27d69229bfc954b662d24dea9984b1bc50
     source_tracking_ref: .harness/source.json
   relevant_instructions:
@@ -78,4 +78,5 @@ outcome:
 follow_up:
   harness_change_needed: none
   decision_or_failure_record: docs/decisions/0018-adopt-effectiveness-outcome-tracking.md
-  include_in_effectiveness_report: yes, but only under a non-comparable setup runs section and not in the comparable product-task count
+  include_in_effectiveness_report: true
+  include_in_comparable_product_task_count: false
